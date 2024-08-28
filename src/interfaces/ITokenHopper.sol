@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.23;
 
+// Action Generators are used by hopper owners 
+// to power the logic of the hopper's button action.
+// Generators should be reasonably stateless and
+// immutable to be used safely.
+import { 
+  IHopperActionGenerator
+} from "./IHopperActionGenerator.sol";
+
 /**
  * ITokenHopper
  *
@@ -36,31 +44,6 @@ pragma solidity ^0.8.23;
  *    funds successfully from the hopper.
  */
 interface ITokenHopper {
-
-    /**
-     * HopperAction
-     *
-     * Represents an action that the hopper can do, *acting as itself* in an un-delegated way.
-     * An action is specified by the target contract address, along with its call data.
-     * The call data is the ABI encoded 4-byte function selector followed by the serialized
-     * parameters of it's methods.
-     *
-     * The hopper's design does not support delegated calls, message values (ETH transfers)
-     * nor the ability to understand, store, or otherwise use any return values.
-     *
-     * A hopper can be programmed *once* with a set of actions that are to be executed
-     * for *each* initiation of the hopper's behavior.
-     *
-     * WARNING: If for any reason any of a hopper's actions revert during execution the
-     *          hopper could be "attacked," "bricked," or otherwise rendered inoperable 
-     *          until the expiration period, depending on the trust model with the target
-     *          contracts.
-     */ 
-    struct HopperAction {
-      address target;
-      address callData;
-    }
-
     /**
      * HopperConfiguration
      *
@@ -68,23 +51,23 @@ interface ITokenHopper {
      * to configure it's parameters.
      */
     struct HopperConfiguration {
-      // Initial Funds
-      address token;           // Each hopper will hold exactly one token type.
-      uint256 initialAmount;   // The amount to supply the hopper on initialization.
+        // Initial Funds
+        address token;         // Each hopper will hold exactly one token type.
+        uint256 initialAmount; // The amount to supply the hopper on initialization.
 
-      // Expiration
-      //
-      // Optionally, a hopper can expire at a specific timestamp.
-      // If set to true, the expirationTimestamp is used to disable
-      // the hopper's programmed behavior and, if any funds are left,
-      // enables the hopper owner to retrieve the funds.
-      bool    doesExpire;          // CAREFUL! Setting this to false will lock funds FOREVER! 
-      uint256 expirationTimestamp; // only considered as valid (even set to 0) if doesExpire is true 
-      
-      // Behavior
-      uint256        cooldownSeconds; // The number of seconds minimally required between each action.
-      HopperAction[] actions;         // done in sequence, every time. 
-    }
+        // Behavior
+        uint256                cooldownSeconds; // The number of seconds minimally required between each action.
+        IHopperActionGenerator actionGenerator; // The logic behind the button press for the hopper.
+
+        // Expiration
+        //
+        // Optionally, a hopper can expire at a specific timestamp.
+        // If set to true, the expirationTimestamp is used to disable
+        // the hopper's programmed behavior and, if any funds are left,
+        // enables the hopper owner to retrieve the funds.
+        bool    doesExpire;          // CAREFUL! Setting this to false will lock funds FOREVER! 
+        uint256 expirationTimestamp; // only considered as valid (even set to 0) if doesExpire is true  
+    } 
 
     /**
      * isLoaded()
@@ -99,8 +82,9 @@ interface ITokenHopper {
      * Determines if the hopper has expired, making any remaining token balance
      * retriavable by the owner.
      *
-     * @return true if and only if (doesExpire && block.timestamp >= expirationTimestamp)
+     * @return true if and only if isLoaded() && (doesExpire && block.timestamp >= expirationTimestamp)
      */
+    function isExpired() external returns (bool);
 
     /**
      * getHopperConfiguration()
@@ -133,9 +117,9 @@ interface ITokenHopper {
      * This function will pull in initialAmount of the token, so the caller
      * must have properly set their allowances.
      *
-     * @param configuration the Hopper Configuration defining the behavior 
+     * @param config the Hopper Configuration defining the behavior 
      */
-    function load(HopperConfiguration calldata configuration) external;
+    function load(HopperConfiguration calldata config) external;
 
     /**
      * pressButton()
