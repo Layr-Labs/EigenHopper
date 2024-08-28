@@ -1,14 +1,6 @@
 // SPDX-License-Identifier: MIT 
 pragma solidity ^0.8.23;
 
-// Action Generators are used by hopper owners 
-// to power the logic of the hopper's button action.
-// Generators should be reasonably stateless and
-// immutable to be used safely.
-import { 
-  IHopperActionGenerator
-} from "./IHopperActionGenerator.sol";
-
 /**
  * ITokenHopper
  *
@@ -52,12 +44,12 @@ interface ITokenHopper {
      */
     struct HopperConfiguration {
         // Initial Funds
-        address token;         // Each hopper will hold exactly one token type.
-        uint256 initialAmount; // The amount to supply the hopper on initialization.
+        address token;              // Each hopper will hold exactly one token type.
+        uint256 initialAmount;      // The amount to supply the hopper on initialization.
 
         // Behavior
-        uint256                cooldownSeconds; // The number of seconds minimally required between each action.
-        IHopperActionGenerator actionGenerator; // The logic behind the button press for the hopper.
+        uint256 cooldownSeconds;    // The number of seconds minimally required between each action.
+        address actionGenerator;    // The logic behind the button press for the hopper.
 
         // Expiration
         //
@@ -74,7 +66,7 @@ interface ITokenHopper {
      *
      * @return true if the hopper has been loaded by the owner, false otherwise.
      */
-    function isLoaded() external returns (bool);
+    function isLoaded() external view returns (bool);
 
     /**
      * isExpired()
@@ -84,7 +76,7 @@ interface ITokenHopper {
      *
      * @return true if and only if isLoaded() && (doesExpire && block.timestamp >= expirationTimestamp)
      */
-    function isExpired() external returns (bool);
+    function isExpired() external view returns (bool);
 
     /**
      * getHopperConfiguration()
@@ -93,7 +85,7 @@ interface ITokenHopper {
      *
      * @return the hopper configuration initially supplied by the owner.
      */
-    function getHopperConfiguration() external returns (HopperConfiguration);
+    function getHopperConfiguration() external view returns (HopperConfiguration memory);
 
     /**
      * canPress()
@@ -103,7 +95,7 @@ interface ITokenHopper {
      *
      * @return true if the hopper is loaded and not in cooldown, false otherwise.
      */
-    function canPress() external returns (bool);
+    function canPress() external view returns (bool);
 
     /**
      * load()

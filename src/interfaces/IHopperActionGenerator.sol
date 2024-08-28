@@ -32,7 +32,7 @@ interface IHopperActionGenerator {
      */ 
     struct HopperAction {
         address target;
-        address callData;
+        bytes   callData;
     }
 
     /**
@@ -45,9 +45,10 @@ interface IHopperActionGenerator {
      * This interface purposefully does not take the full hopper configuration because it should be
      * considered stateless or otherwise immutable logic for trustless operation.
      *
-     * @param hopperToken the contract address of the token that is loaded into the hopper.
      * @param hopper      the address of the ITokenHopper you want to generate actions for.
+     * @param hopperToken the contract address of the token that is loaded into the hopper.
+     *
      * @return a list of hopper actions that are presumably to be executed by the hopper in the same transaction.
      */
-    function generateHopperActions(address hopperToken, address hopper) external returns(HopperAction[] memory); 
+    function generateHopperActions(address hopper, address hopperToken) external returns(HopperAction[] memory); 
 }
