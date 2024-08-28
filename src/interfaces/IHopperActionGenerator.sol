@@ -50,5 +50,5 @@ interface IHopperActionGenerator {
      *
      * @return a list of hopper actions that are presumably to be executed by the hopper in the same transaction.
      */
-    function generateHopperActions(address hopper, address hopperToken) external returns(HopperAction[] memory); 
+    function generateHopperActions(address hopper, address hopperToken) external view returns(HopperAction[] memory); 
 }
