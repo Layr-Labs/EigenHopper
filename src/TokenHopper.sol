@@ -91,7 +91,11 @@ contract TokenHopper is ITokenHopper, Ownable {
      */
     function load(HopperConfiguration calldata config) onlyOwner external {
         require(!loaded, "Hopper is already loaded");
-        
+       
+        // set the cooldown to the current block timestamp
+        // so the button can be pressed right after loading it
+        cooldownHorizon = block.timestamp;
+
         // set the configuration
         configuration = config;
         loaded = true;
@@ -99,8 +103,7 @@ contract TokenHopper is ITokenHopper, Ownable {
         // pull in the tokens. this will fail if the message sender
         // did not properly set approvals or the balance is insufficent.
         // we must also do this last to make sure nothing silly happens,
-        assert(IERC20(configuration.token).transferFrom(msg.sender, address(this), 
-            configuration.initialAmount));
+        assert(IERC20(configuration.token).transfer(msg.sender, configuration.initialAmount));
     }
 
     /**
@@ -114,6 +117,17 @@ contract TokenHopper is ITokenHopper, Ownable {
     function pressButton() external {
         // make sure we can press the button
         require(_canPress(), "Hopper button currently unpressable.");
+
+        // we need to immediately re-set the horizon so actions
+        // can't re-enter and press the button again. if a button isn't
+        // pressed 'right away,' then time is 'lost' and the button isn't
+        // pressable "sooner."
+        //
+        // It's the responsibility of the action generators to modulo their
+        // action generation to the same granularity as the cooldown period.
+        // its a design decision to make the action generator "stateless"
+        // and not compensate for missed button time.
+        cooldownHorizon = block.timestamp + configuration.cooldownSeconds;
 
         // grab the actions
         IHopperActionGenerator.HopperAction[] memory actions = 
