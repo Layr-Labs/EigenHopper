@@ -94,6 +94,15 @@ interface ITokenHopper {
     function isLoaded() external returns (bool);
 
     /**
+     * isExpired()
+     *
+     * Determines if the hopper has expired, making any remaining token balance
+     * retriavable by the owner.
+     *
+     * @return true if and only if (doesExpire && block.timestamp >= expirationTimestamp)
+     */
+
+    /**
      * getHopperConfiguration()
      *
      * If the hopper has not yet been loaded, this call will revert.
@@ -137,4 +146,15 @@ interface ITokenHopper {
      * not yet been loaded, or if the hopper is in a cooldown period.
      */
     function pressButton() external;
+
+    /**
+     * retrieveFunds()
+     *
+     * This method can only be called by the owner and will return all remaining
+     * token balance to them if and only if the hopper is expired.
+     *
+     * This method will always revert if the hopper is not configured to expire.
+     * It will also revert if the expiration date has not yet passed.
+     */
+     function retrieveFunds() external;
 }
