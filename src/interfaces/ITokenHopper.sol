@@ -45,7 +45,6 @@ interface ITokenHopper {
     struct HopperConfiguration {
         // Initial Funds
         address token;              // Each hopper will hold exactly one token type.
-        uint256 initialAmount;      // The amount to supply the hopper on initialization.
 
         // Behavior
         uint256 cooldownSeconds;    // The number of seconds minimally required between each action.
@@ -57,7 +56,7 @@ interface ITokenHopper {
         // If set to true, the expirationTimestamp is used to disable
         // the hopper's programmed behavior and, if any funds are left,
         // enables the hopper owner to retrieve the funds.
-        bool    doesExpire;          // CAREFUL! Setting this to false will lock funds FOREVER! 
+        bool doesExpire;          // CAREFUL! Setting this to false will lock funds FOREVER! 
         uint256 expirationTimestamp; // only considered as valid (even set to 0) if doesExpire is true  
     } 
 
@@ -105,9 +104,6 @@ interface ITokenHopper {
      * Immediately after this method returns the "button" could be pressed.
      *
      * Subsequent calls to load() after the initial call will revert.
-     *
-     * This function will pull in initialAmount of the token, so the caller
-     * must have properly set their allowances.
      *
      * @param config the Hopper Configuration defining the behavior 
      */

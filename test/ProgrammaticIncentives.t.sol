@@ -25,17 +25,22 @@ import "src/RewardAllStakersActionGenerator.sol";
 contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     Vm cheats = Vm(VM_ADDRESS);
 
-    mapping(address => bool) fuzzedOutAddresses;
+    mapping(address => bool) public fuzzedOutAddresses;
 
-    address initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
-    address minterToSet = address(500);
-    address mintTo = address(12345);
+    address public initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
+    address public minterToSet = address(500);
+    address public mintTo = address(12345);
 
-    address eigenImplAddress = address(999);
-    address beigenImplAddress = address(555);
-    address rewardsCoordinatorImplAddress = address(7777777);
-    address eigenAddress = 0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83;
-    address beigenAddress = 0x83E9115d334D248Ce39a6f36144aEaB5b3456e75;
+    address public eigenImplAddress = address(999);
+    address public beigenImplAddress = address(555);
+    address public rewardsCoordinatorImplAddress = address(7777777);
+    address public eigenAddress = 0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83;
+    address public beigenAddress = 0x83E9115d334D248Ce39a6f36144aEaB5b3456e75;
+
+    uint32 public _firstSubmissionStartTimestamp;
+    uint256 public _firstSubmissionTriggerCutoff;
+    uint256[2] public _amounts;
+    IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
     ProxyAdmin public proxyAdmin;
 
@@ -52,6 +57,9 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     StrategyManagerMock public strategyManagerMock;
 
     EmptyContract public emptyContract;
+
+    TokenHopper public tokenHopper;
+    RewardAllStakersActionGenerator public actionGenerator;
 
     function setUp() public {
         vm.startPrank(initialOwner);
@@ -89,6 +97,30 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+
+        actionGenerator = new RewardAllStakersActionGenerator({
+            _rewardsCoordinator: rewardsCoordinator,
+            _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
+            _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
+            _amounts: _amounts,
+            _strategiesAndMultipliers: _strategiesAndMultipliers,
+            _bEIGEN: IERC20(beigenAddress),
+            _EIGEN: IERC20(eigenAddress)
+        });
+
+        tokenHopper = new TokenHopper({
+            initialOwner: initialOwner
+        });
+
+        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
+            token: eigenAddress,
+            cooldownSeconds: (1 weeks - 15 minutes),
+            actionGenerator: address(actionGenerator),
+            doesExpire: true,
+            expirationTimestamp: block.timestamp + 24 weeks 
+        });
+
+        tokenHopper.load(hopperConfiguration);
 
         vm.stopPrank();
     }

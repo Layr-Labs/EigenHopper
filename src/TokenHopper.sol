@@ -88,9 +88,6 @@ contract TokenHopper is ITokenHopper, Ownable {
      *
      * Subsequent calls to load() after the initial call will revert.
      *
-     * This function will pull in initialAmount of the token, so the caller
-     * must have properly set their allowances.
-     *
      * @param config the Hopper Configuration defining the behavior 
      */
     function load(HopperConfiguration calldata config) onlyOwner external {
@@ -103,11 +100,6 @@ contract TokenHopper is ITokenHopper, Ownable {
         // set the configuration
         configuration = config;
         loaded = true;
-
-        // pull in the tokens. this will fail if the message sender
-        // did not properly set approvals or the balance is insufficent.
-        // we must also do this last to make sure nothing silly happens,
-        assert(IERC20(configuration.token).transfer(msg.sender, configuration.initialAmount));
     }
 
     /**
