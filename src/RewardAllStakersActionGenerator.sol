@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: MIT 
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.12;
 
 import { IHopperActionGenerator } from "./interfaces/IHopperActionGenerator.sol";
-import { IRewardsCoordinator } from "./interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinator } from "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 
 // We are going to use the standard OZ interfaces and implementations
 import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
@@ -27,6 +27,8 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
     IRewardsCoordinator public immutable rewardsCoordinator;
     // the bEIGEN token contract
     IERC20 public immutable bEIGEN;
+    // the EIGEN token contract
+    IERC20 public immutable EIGEN;
 
     // configuration set at construction, used in RewardsSubmissions
     IRewardsCoordinator.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
@@ -44,7 +46,8 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         uint256 _firstSubmissionTriggerCutoff,
         uint256[2] memory _amounts,
         IRewardsCoordinator.StrategyAndMultiplier[][2] memory _strategiesAndMultipliers,
-        IERC20 _bEIGEN
+        IERC20 _bEIGEN,
+        IERC20 _EIGEN
     )
     {
         // RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS
@@ -70,9 +73,10 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         }
 
         bEIGEN = _bEIGEN;
+        EIGEN = _EIGEN;
     }
 
-    function generateHopperActions(address hopper, address hopperToken) external view returns (HopperAction[] memory) {
+    function generateHopperActions(address hopper, address /*hopperToken*/) external view returns (HopperAction[] memory) {
         HopperAction[] memory actions = new HopperAction[](2); 
 
         uint256 totalAmount;
@@ -109,7 +113,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         for (uint256 i = 0; i < 2; ++i) {
             rewardsSubmissions[i] = IRewardsCoordinator.RewardsSubmission({
                 strategiesAndMultipliers: strategiesAndMultipliers[i],
-                token: IERC20(hopperToken),
+                token: EIGEN,
                 amount: amountsToUse[i],
                 startTimestamp: startTimestamp,
                 duration: duration
@@ -126,18 +130,18 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         // 1) approve the bEIGEN token for transfer so it can be wrapped
         actions[1] = HopperAction({
             target: address(bEIGEN),
-            callData: abi.encodeWithSelector(IERC20.approve.selector, hopperToken, totalAmount)
+            callData: abi.encodeWithSelector(IERC20.approve.selector, address(EIGEN), totalAmount)
         });
 
         // 2) wrap the bEIGEN token to receive EIGEN
         actions[2] = HopperAction({
-            target: hopperToken,
+            target: address(EIGEN),
             callData: abi.encodeWithSignature("wrap(uint256)", totalAmount)
         });
 
         // 3) Set the proper aggregate allowance on the coordinator for the hopper
         actions[3] = HopperAction({
-            target: hopperToken,
+            target: address(EIGEN),
             callData: abi.encodeWithSelector(IERC20.approve.selector, rewardsCoordinator, totalAmount)
         });
 
