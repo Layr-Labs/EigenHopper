@@ -12,15 +12,18 @@ import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
 
 import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 
-// import "../harnesses/EigenHarness.sol";
-import "./BytecodeConstants.sol";
-
 import "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
 import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
 import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
 
 import "src/TokenHopper.sol";
 import "src/RewardAllStakersActionGenerator.sol";
+
+import "./BytecodeConstants.sol";
+
+interface IMinting {
+    function isMinter(address) external view returns (bool);
+}
 
 contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     Vm cheats = Vm(VM_ADDRESS);
@@ -34,11 +37,17 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     address public eigenImplAddress = address(999);
     address public beigenImplAddress = address(555);
     address public rewardsCoordinatorImplAddress = address(7777777);
+    address public _rewardsUpdater = address(4444);
+    IPauserRegistry public _pauserRegistry = IPauserRegistry(address(333));
+
+    // TODO: replace instances of these with beigen and eigen. currently tests are getting farther than they should by calling these (EOAs in anvil)
     address public eigenAddress = 0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83;
     address public beigenAddress = 0x83E9115d334D248Ce39a6f36144aEaB5b3456e75;
 
-    uint32 public _firstSubmissionStartTimestamp;
-    uint256 public _firstSubmissionTriggerCutoff;
+    uint256 GENESIS_REWARDS_TIMESTAMP = 1710979200;
+
+    uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
+    uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 1 weeks;
     uint256[2] public _amounts;
     IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
@@ -50,8 +59,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     IBackingEigen public beigenImpl;
     IBackingEigen public beigen;
 
-    IRewardsCoordinator public rewardsCoordinatorImpl;
-    IRewardsCoordinator public rewardsCoordinator;
+    RewardsCoordinator public rewardsCoordinatorImpl;
+    RewardsCoordinator public rewardsCoordinator;
 
     DelegationManagerMock public delegationManagerMock;
     StrategyManagerMock public strategyManagerMock;
@@ -69,7 +78,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // deploy proxies
         eigen = IEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
         beigen = IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-        rewardsCoordinator = IRewardsCoordinator(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        rewardsCoordinator = RewardsCoordinator(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
 
         // TODO: this block does NOT work as-is. might need to just avoid using this if that's workable.
         // etch proxies to fix addresses
@@ -90,13 +99,34 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         cheats.etch(address(eigenImpl), eigenDeployedBytecode);
         beigenImpl = IBackingEigen(beigenImplAddress);
         cheats.etch(address(beigenImpl), beigenDeployedBytecode);
-        rewardsCoordinatorImpl = IRewardsCoordinator(rewardsCoordinatorImplAddress);
+        rewardsCoordinatorImpl = RewardsCoordinator(rewardsCoordinatorImplAddress);
         cheats.etch(address(rewardsCoordinatorImpl), rewardsCoordinatorDeployedBytecode);
 
         // upgrade proxies
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+
+        rewardsCoordinator.initialize({
+            initialOwner: initialOwner,
+            _pauserRegistry: _pauserRegistry,
+            initialPausedStatus: 0,
+            _rewardsUpdater: _rewardsUpdater,
+            _activationDelay: 1 weeks,
+            _globalCommissionBips: 1000
+        });
+
+        _amounts[0] = 100;
+        _amounts[1] = 200;
+        _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(eigenAddress),
+            multiplier: 1e18
+        }));
+        _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: IStrategy(eigenAddress),
+            multiplier: 1e18
+        }));
+        strategyManagerMock.setStrategyWhitelist(IStrategy(eigenAddress), true);
 
         actionGenerator = new RewardAllStakersActionGenerator({
             _rewardsCoordinator: rewardsCoordinator,
@@ -114,19 +144,31 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
             token: eigenAddress,
-            cooldownSeconds: (1 weeks - 15 minutes),
+            cooldownSeconds: 1 weeks,
             actionGenerator: address(actionGenerator),
             doesExpire: true,
-            expirationTimestamp: block.timestamp + 24 weeks 
+            expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks 
         });
 
+        cheats.warp(_firstSubmissionStartTimestamp + 1 weeks);
         tokenHopper.load(hopperConfiguration);
 
         vm.stopPrank();
+
+        cheats.prank(Ownable(address(rewardsCoordinator)).owner());
+        rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
     }
 
     function test_test_test() public {
         emit log_named_address("eigen.bEIGEN()", address(eigen.bEIGEN()));
         emit log_named_address("beigen.EIGEN()", address(beigen.EIGEN()));
+        emit log_named_uint("rewardsCoordinator.MAX_RETROACTIVE_LENGTH()", rewardsCoordinator.MAX_RETROACTIVE_LENGTH());
+        emit log_named_bytes("beigen.isMinter(address(tokenHopper))",
+            abi.encodePacked(IMinting(address(beigen)).isMinter(address(tokenHopper))));
+    }
+
+    function test_pressButton() public {
+        emit log_named_uint("test_pressButton.block.timestamp", block.timestamp);
+        tokenHopper.pressButton();
     }
 }

@@ -151,7 +151,6 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
             callData: abi.encodeWithSelector(IRewardsCoordinator.createRewardsForAllSubmission.selector, rewardsSubmissions)
         });
 
-
         // return array of hopper actions
         return actions; 
 
