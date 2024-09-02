@@ -29,7 +29,9 @@ contract TokenHopper is ITokenHopper, Ownable {
     // It's not entirely possible to load the hopper on deployment, because without
     // a counterfactual deployment the deployer will not know what address to set
     // approvals for.
-    constructor(address initialOwner) Ownable(initialOwner) {}
+    constructor(address initialOwner) {
+        _transferOwnership(initialOwner);
+    }
 
     /**
      * isLoaded()
