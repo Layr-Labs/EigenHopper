@@ -11,7 +11,7 @@ import { IHopperActionGenerator } from "./interfaces/IHopperActionGenerator.sol"
 
 // We are going to use the standard OZ interfaces and implementations
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * TokenHopper
@@ -19,6 +19,8 @@ import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
  * A minimal implementation of the ITokenHopper spec.
  */
 contract TokenHopper is ITokenHopper, Ownable {
+    using SafeERC20 for IERC20;
+
     // Loading State
     bool                private loaded;                    // set to true when hopper is loaded
     HopperConfiguration private configuration;             // provided by contract owner
@@ -157,8 +159,7 @@ contract TokenHopper is ITokenHopper, Ownable {
 
         // move the existing balance of the token in this contract
         // back to the caller, who must be the owner 
-        assert(IERC20(configuration.token).transferFrom(address(this), owner(),
-            IERC20(configuration.token).balanceOf(address(this))));
+        IERC20(configuration.token).safeTransfer(owner(), IERC20(configuration.token).balanceOf(address(this)));
      }
 
      /////////////////////////////////////////////////
