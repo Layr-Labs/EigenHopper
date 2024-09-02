@@ -77,7 +77,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
     }
 
     function generateHopperActions(address hopper, address /*hopperToken*/) external view returns (HopperAction[] memory) {
-        HopperAction[] memory actions = new HopperAction[](2); 
+        HopperAction[] memory actions = new HopperAction[](5); 
 
         uint256 totalAmount;
         uint32 startTimestamp;
