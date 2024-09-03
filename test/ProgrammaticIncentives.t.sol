@@ -28,27 +28,12 @@ interface IMinting {
 contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     Vm cheats = Vm(VM_ADDRESS);
 
-    // utility function for deploying a contract from its creation bytecode
-    function deployContractFromBytecode(bytes memory bytecode) public returns (address) {
-        address deployedContract;
-        uint256 size = bytecode.length;
-        uint256 location;
-        assembly {
-            // value, offset, size
-            location := add(bytecode, 32)
-        }
-        emit log_named_uint("location", location);
-        emit log_named_uint("size", size);
-        assembly {
-            /**
-             * create takes args: value, offset, size
-             * offset should start from the bytecode itself -- 'bytecode' refers to the location, and we skip the first
-             * 32 bytes in the offset since these encode the length rather than the data itself
-             */
-            deployedContract := create(0, add(bytecode, 32), size)
-        }
-        return deployedContract;
-    }
+    event RewardsSubmissionForAllCreated(
+        address indexed submitter,
+        uint256 indexed submissionNonce,
+        bytes32 indexed rewardsSubmissionHash,
+        IRewardsCoordinator.RewardsSubmission rewardsSubmission
+    );
 
     mapping(address => bool) public fuzzedOutAddresses;
 
@@ -93,6 +78,26 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
     TokenHopper public tokenHopper;
     RewardAllStakersActionGenerator public actionGenerator;
+
+    // utility function for deploying a contract from its creation bytecode
+    function deployContractFromBytecode(bytes memory bytecode) public returns (address) {
+        address deployedContract;
+        uint256 size = bytecode.length;
+        uint256 location;
+        assembly {
+            // value, offset, size
+            location := add(bytecode, 32)
+        }
+        assembly {
+            /**
+             * the create opcode takes args: value, offset, size
+             * offset should start from the bytecode itself -- 'bytecode' refers to the location, and we skip the first
+             * 32 bytes in the offset since these encode the length rather than the data itself
+             */
+            deployedContract := create(0, add(bytecode, 32), size)
+        }
+        return deployedContract;
+    }
 
     function setUp() public {
         cheats.startPrank(initialOwner);
@@ -205,18 +210,20 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         strategyManagerMock.setStrategyWhitelist(IStrategy(address(eigen)), true);
     }
 
-    function test_test_test() public {
-        emit log_named_address("address(beigen)", address(beigen));
-        emit log_named_address("eigen.bEIGEN()", address(eigen.bEIGEN()));
-        emit log_named_address("address(eigen)", address(eigen));
-        emit log_named_address("beigen.EIGEN()", address(beigen.EIGEN()));
-        emit log_named_uint("rewardsCoordinator.MAX_RETROACTIVE_LENGTH()", rewardsCoordinator.MAX_RETROACTIVE_LENGTH());
-        emit log_named_bytes("beigen.isMinter(address(tokenHopper))",
-            abi.encodePacked(IMinting(address(beigen)).isMinter(address(tokenHopper))));
-    }
-
     function test_pressButton() public {
-        emit log_named_uint("test_pressButton.block.timestamp", block.timestamp);
+        uint256 nonce = 0;
+        // TODO: need to get correct RewardSubmission data here
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinator.RewardsSubmission[](2);
+        IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[0];
+        bytes32 rewardsSubmissionHash = keccak256(abi.encode(msg.sender, nonce, rewardsSubmission));
+
+        cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
+        emit RewardsSubmissionForAllCreated({
+            submitter: address(tokenHopper),
+            submissionNonce: nonce,
+            rewardsSubmissionHash: rewardsSubmissionHash,
+            rewardsSubmission: rewardsSubmission
+        });
         tokenHopper.pressButton();
     }
 }
