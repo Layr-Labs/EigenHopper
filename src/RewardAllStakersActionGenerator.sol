@@ -124,7 +124,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         // 0) mint new tokens
         actions[0] = HopperAction({
             target: address(bEIGEN),
-            callData: abi.encodeWithSignature("mint(address, uint256)", hopper, totalAmount)
+            callData: abi.encodeWithSignature("mint(address,uint256)", hopper, totalAmount)
         });
 
         // 1) approve the bEIGEN token for transfer so it can be wrapped
