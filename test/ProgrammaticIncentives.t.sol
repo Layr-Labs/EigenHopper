@@ -214,6 +214,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
     function test_pressButton() public {
         uint256 rewardsCoordinatorEigenBalanceBefore = eigen.balanceOf(address(rewardsCoordinator));
+        uint256 eigenTotalSupplyBefore = eigen.totalSupply();
+        uint256 beigenTotalSupplyBefore = beigen.totalSupply();
 
         IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         uint256 currentNonce = 0;
@@ -273,6 +275,18 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         tokenHopper.pressButton();
 
         uint256 rewardsCoordinatorEigenBalanceAfter = eigen.balanceOf(address(rewardsCoordinator));
+        uint256 eigenTotalSupplyAfter = eigen.totalSupply();
+        uint256 beigenTotalSupplyAfter = beigen.totalSupply();
+
+        assertEq(rewardsCoordinatorEigenBalanceAfter, rewardsCoordinatorEigenBalanceBefore + totalAmount,
+            "rewardsCoordinator did not receive expected amount of EIGEN tokens");
+        assertEq(eigenTotalSupplyAfter, eigenTotalSupplyBefore + totalAmount,
+            "EIGEN totalSupply did not increase as expected");
+        assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount,
+            "bEIGEN totalSupply did not increase as expected");
+        require(!tokenHopper.canPress(), "should not be able to immediately press button again");
+        assertEq(tokenHopper.cooldownHorizon(), block.timestamp + tokenHopper.getHopperConfiguration().cooldownSeconds,
+            "cooldownHorizon not set correctly");
     }
 
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig

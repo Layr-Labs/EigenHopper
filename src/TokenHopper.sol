@@ -22,11 +22,14 @@ contract TokenHopper is ITokenHopper, Ownable {
     using SafeERC20 for IERC20;
 
     // Loading State
-    bool                private loaded;                    // set to true when hopper is loaded
-    HopperConfiguration private configuration;             // provided by contract owner
+    // set to true when hopper is loaded
+    bool private loaded;
+    // provided by contract owner when loading
+    HopperConfiguration private configuration;
 
     // Button state
-    uint256             private cooldownHorizon;           // timestamp of button re-activation
+    // timestamp of button re-activation
+    uint256 public cooldownHorizon;
 
     // It's not entirely possible to load the hopper on deployment, because without
     // a counterfactual deployment the deployer will not know what address to set
