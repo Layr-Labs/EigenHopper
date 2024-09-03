@@ -34,6 +34,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         bytes32 indexed rewardsSubmissionHash,
         IRewardsCoordinator.RewardsSubmission rewardsSubmission
     );
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
 
     mapping(address => bool) public fuzzedOutAddresses;
 
@@ -211,19 +213,70 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     }
 
     function test_pressButton() public {
-        uint256 nonce = 0;
-        // TODO: need to get correct RewardSubmission data here
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinator.RewardsSubmission[](2);
-        IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[0];
-        bytes32 rewardsSubmissionHash = keccak256(abi.encode(msg.sender, nonce, rewardsSubmission));
+        uint256 rewardsCoordinatorEigenBalanceBefore = eigen.balanceOf(address(rewardsCoordinator));
 
-        cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
-        emit RewardsSubmissionForAllCreated({
-            submitter: address(tokenHopper),
-            submissionNonce: nonce,
-            rewardsSubmissionHash: rewardsSubmissionHash,
-            rewardsSubmission: rewardsSubmission
-        });
+        IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        uint256 currentNonce = 0;
+        // TODO: need to get correct RewardSubmission data here
+        // IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinator.RewardsSubmission[](2);
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        // event for minting
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Transfer(address(0), address(tokenHopper), totalAmount);
+        // event for approving to wrap
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Approval(address(tokenHopper), address(eigen), totalAmount);
+        // events from wrapping
+        // spending approval
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Approval(address(tokenHopper), address(eigen), 0);
+        // transferring in beigen
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Transfer(address(tokenHopper), address(eigen), totalAmount);
+        // minting new eigen to hopper as last step of wrapping
+        cheats.expectEmit(true, true, true, true, address(eigen));
+        emit Transfer(address(0), address(tokenHopper), totalAmount);
+        // event for approving RewardsCoordinator to transfer
+        cheats.expectEmit(true, true, true, true, address(eigen));
+        emit Approval(address(tokenHopper), address(rewardsCoordinator), totalAmount);
+
+        uint256 remainingAllowance = totalAmount;
+        // for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+        for (uint256 i = 0; i < 1; ++i) {
+            IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
+
+            bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
+            cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
+            emit RewardsSubmissionForAllCreated({
+                submitter: address(tokenHopper),
+                submissionNonce: currentNonce,
+                rewardsSubmissionHash: rewardsSubmissionHash,
+                rewardsSubmission: rewardsSubmission
+            });
+            // spending approval
+            cheats.expectEmit(true, true, true, true, address(eigen));
+            remainingAllowance -= rewardsSubmission.amount;
+            emit Approval(address(tokenHopper), address(rewardsCoordinator), remainingAllowance);
+            // transferring into RewardsCoordinator
+            cheats.expectEmit(true, true, true, true, address(eigen));
+            emit Transfer(address(tokenHopper), address(rewardsCoordinator), rewardsSubmission.amount);
+           currentNonce++;
+        }
         tokenHopper.pressButton();
+
+        uint256 rewardsCoordinatorEigenBalanceAfter = eigen.balanceOf(address(rewardsCoordinator));
+    }
+
+    // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
+    function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
+        return bytestring[4:];
     }
 }
