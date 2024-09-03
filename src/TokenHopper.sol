@@ -91,7 +91,7 @@ contract TokenHopper is ITokenHopper, Ownable {
      * @param config the Hopper Configuration defining the behavior 
      */
     function load(HopperConfiguration calldata config) onlyOwner external {
-        require(!loaded, "Hopper is already loaded");
+        require(!loaded, "TokenHopper.load: Hopper is already loaded");
        
         // set the cooldown to the current block timestamp
         // so the button can be pressed right after loading it
@@ -112,7 +112,7 @@ contract TokenHopper is ITokenHopper, Ownable {
      */
     function pressButton() external {
         // make sure we can press the button
-        require(_canPress(), "Hopper button currently unpressable.");
+        require(_canPress(), "TokenHopper.pressButton: button currently unpressable.");
 
         // we need to immediately re-set the horizon so actions
         // can't re-enter and press the button again. if a button isn't
@@ -133,7 +133,7 @@ contract TokenHopper is ITokenHopper, Ownable {
         // perform the actions, and make sure they were successful
         for(uint256 x = 0; x < actions.length; x++) {
             (bool success,) = (actions[x].target).call(actions[x].callData);
-            assert(success);
+            require(success, "TokenHopper.pressButton: call reverted");
         }
     }
 
@@ -147,7 +147,7 @@ contract TokenHopper is ITokenHopper, Ownable {
      * It will also revert if the expiration date has not yet passed.
      */
      function retrieveFunds() onlyOwner external {
-        require(_isExpired(), "Hopper is not currently expired.");
+        require(_isExpired(), "TokenHopper.retrieveFunds: Hopper is not currently expired.");
 
         // move the existing balance of the token in this contract
         // back to the caller, who must be the owner 
