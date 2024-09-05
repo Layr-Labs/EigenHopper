@@ -55,7 +55,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
     // Action Generator config
     uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
-    uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 1 weeks;
+    uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 5 weeks;
     uint256[2] public _amounts;
     IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
@@ -222,8 +222,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         uint256 beigenTotalSupplyBefore = beigen.totalSupply();
 
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-
-        uint256 currentNonce = 0;
+        uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
         {
             IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
@@ -301,6 +300,61 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         require(!tokenHopper.canPress(), "should not be able to immediately press button again");
         assertEq(tokenHopper.latestPress(), block.timestamp,
             "latestPress not set correctly");
+    }
+
+    function test_pressButton_MultipleCycles() public {
+        cheats.warp(_firstSubmissionTriggerCutoff - 3 days);
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        uint256 expectedTotalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        // multiplier for number of weeks for first distribution
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        uint256 multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds;
+        require(multiplier > 1, "test setup is bad");
+        expectedTotalAmount = expectedTotalAmount * multiplier;
+
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier, "amount in rewardsSubmission is not multiplied correctly");
+        }
+        // test first press
+        test_pressButton();
+
+        cheats.warp(_firstSubmissionTriggerCutoff + 3 days);
+        actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+
+        totalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        expectedTotalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
+        }
+
+        // test second press
+        test_pressButton();
     }
 
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
