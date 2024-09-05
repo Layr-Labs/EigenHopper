@@ -36,6 +36,9 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     );
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
+    event HopperLoaded(ITokenHopper.HopperConfiguration config);
+    event ButtonPressed(address indexed caller, uint256 newCooldownHorizon);
+    event FundsRetrieved(uint256 amount);
 
     mapping(address => bool) public fuzzedOutAddresses;
 
@@ -159,18 +162,19 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             _EIGEN: eigen
         });
 
-        tokenHopper = new TokenHopper({
-            initialOwner: initialOwner
-        });
         ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
             token: address(eigen),
+            startTime: _firstSubmissionStartTimestamp,
             cooldownSeconds: 1 weeks,
             actionGenerator: address(actionGenerator),
             doesExpire: true,
             expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks 
         });
+        tokenHopper = new TokenHopper({
+            config: hopperConfiguration,
+            initialOwner: initialOwner
+        });
         cheats.warp(_firstSubmissionStartTimestamp + 1 weeks);
-        tokenHopper.load(hopperConfiguration);
 
         // initialize contracts
         // initialize eigen
@@ -217,15 +221,18 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         uint256 eigenTotalSupplyBefore = eigen.totalSupply();
         uint256 beigenTotalSupplyBefore = beigen.totalSupply();
 
-        IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+
         uint256 currentNonce = 0;
-        // TODO: need to get correct RewardSubmission data here
-        // IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinator.RewardsSubmission[](2);
-        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = abi.decode(
-            rewardsSubmissionsRaw,
-            (IRewardsCoordinator.RewardsSubmission[])
-        );
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        {
+            IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinator.RewardsSubmission[])
+            );
+        }
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
             totalAmount += rewardsSubmissions[i].amount;
@@ -250,8 +257,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         cheats.expectEmit(true, true, true, true, address(eigen));
         emit Approval(address(tokenHopper), address(rewardsCoordinator), totalAmount);
 
+        // events for RewardsCoordinator performing the transfers
         uint256 remainingAllowance = totalAmount;
-        // for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
         for (uint256 i = 0; i < 1; ++i) {
             IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
 
@@ -272,6 +279,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             emit Transfer(address(tokenHopper), address(rewardsCoordinator), rewardsSubmission.amount);
            currentNonce++;
         }
+
+        // event for pressing button
+        cheats.expectEmit(true, true, true, true, address(tokenHopper));
+        uint256 newCooldownHorizon =
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+        emit ButtonPressed(address(this), newCooldownHorizon);
+
         tokenHopper.pressButton();
 
         uint256 rewardsCoordinatorEigenBalanceAfter = eigen.balanceOf(address(rewardsCoordinator));
@@ -285,8 +299,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount,
             "bEIGEN totalSupply did not increase as expected");
         require(!tokenHopper.canPress(), "should not be able to immediately press button again");
-        assertEq(tokenHopper.cooldownHorizon(), block.timestamp + tokenHopper.getHopperConfiguration().cooldownSeconds,
-            "cooldownHorizon not set correctly");
+        assertEq(tokenHopper.latestPress(), block.timestamp,
+            "latestPress not set correctly");
     }
 
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
