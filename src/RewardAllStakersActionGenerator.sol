@@ -11,7 +11,7 @@ import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
  * RewardAllStakersActionGenerator 
  *
  * An implementation of the action generator interface that will
- * use the RewardsCoordinator::createRewardsForAllSubmission() interface.
+ * use the RewardsCoordinator::createRewardsForAllEarners() interface.
  *
  * This implementation gives the deployer the ability to pre-select the
  * RewardSubmission array that is passed into that API, with an end timestamp
@@ -148,7 +148,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         // 4) Call the reward coordinator's ForAll API, serializing the submission array as calldata.
         actions[4] = HopperAction({
             target: address(rewardsCoordinator),
-            callData: abi.encodeWithSelector(IRewardsCoordinator.createRewardsForAllSubmission.selector, rewardsSubmissions)
+            callData: abi.encodeWithSelector(IRewardsCoordinator.createRewardsForAllEarners.selector, rewardsSubmissions)
         });
 
         // return array of hopper actions

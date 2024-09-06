@@ -28,7 +28,7 @@ interface IMinting {
 contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     Vm cheats = Vm(VM_ADDRESS);
 
-    event RewardsSubmissionForAllCreated(
+    event RewardsSubmissionForAllEarnersCreated(
         address indexed submitter,
         uint256 indexed submissionNonce,
         bytes32 indexed rewardsSubmissionHash,
@@ -263,7 +263,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
             bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
             cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
-            emit RewardsSubmissionForAllCreated({
+            emit RewardsSubmissionForAllEarnersCreated({
                 submitter: address(tokenHopper),
                 submissionNonce: currentNonce,
                 rewardsSubmissionHash: rewardsSubmissionHash,
