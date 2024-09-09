@@ -104,7 +104,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         return deployedContract;
     }
 
-    function setUp() public {
+    function setUp() public virtual {
         cheats.startPrank(initialOwner);
         proxyAdmin = new ProxyAdmin();
         emptyContract = new EmptyContract();
@@ -112,7 +112,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // deploy proxies
         eigen = IEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
         beigen = IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-        rewardsCoordinator = RewardsCoordinator(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        rewardsCoordinator = RewardsCoordinator(address(
+            new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
 
         // deploy mocks
         delegationManagerMock = new DelegationManagerMock();
@@ -225,7 +226,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
         {
-            IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
             bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
             rewardsSubmissions = abi.decode(
                 rewardsSubmissionsRaw,
@@ -303,9 +305,10 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     }
 
     function test_pressButton_MultipleCycles() public {
-        cheats.warp(_firstSubmissionTriggerCutoff - 3 days);
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 3 days);
         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
-        IHopperActionGenerator.HopperAction[] memory actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        IHopperActionGenerator.HopperAction[] memory actions =
+            actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
             rewardsSubmissionsRaw,
@@ -327,12 +330,19 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier, "amount in rewardsSubmission is not multiplied correctly");
+            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly");
         }
+        uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
+        require(endOfFirstSubmission <= block.timestamp, "endOfFirstSubmission should be in present or past");
+        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends");
+
         // test first press
         test_pressButton();
 
-        cheats.warp(_firstSubmissionTriggerCutoff + 3 days);
+        // move time forward by 7 days
+        cheats.warp(block.timestamp + 7 days);
         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
@@ -352,6 +362,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
         }
+
+        require(endOfFirstSubmission == rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align");
+        require(rewardsSubmissions[0].startTimestamp == rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts");
+        require(rewardsSubmissions[0].duration == rewardsSubmissions[1].duration,
+            "array entries have different durations");
 
         // test second press
         test_pressButton();
