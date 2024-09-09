@@ -28,6 +28,12 @@ contract TokenHopper is ITokenHopper, Ownable {
     uint256 public latestPress;
 
     constructor(HopperConfiguration memory config, address initialOwner) {
+        require(config.cooldownSeconds != 0, "TokenHopper: zero cooldown not allowed");
+        require(config.token != address(0), "TokenHopper: token cannot be zeroa ddress");
+        if (config.doesExpire) {
+            require(config.expirationTimestamp > config.startTime,
+                "TokenHopper: cannot expire before starting");
+        }
         _transferOwnership(initialOwner);
         // set the configuration and emit an event
         configuration = config;

@@ -21,7 +21,7 @@ import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
 contract RewardAllStakersActionGenerator is IHopperActionGenerator {
 
     // one week in seconds. used in the RewardsCoordinator and as a duration in this contract
-    uint32 public constant CALCULATION_INTERVAL_SECONDS = 604800;
+    uint32 public immutable CALCULATION_INTERVAL_SECONDS;
 
     // the single RewardsCoordinator contract for EigenLayer
     IRewardsCoordinator public immutable rewardsCoordinator;
@@ -50,9 +50,16 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         IERC20 _EIGEN
     )
     {
+        require(address(_rewardsCoordinator) != address(0),
+            "RewardAllStakersActionGenerator: rewardsCoordinator cannot be zero address");
+        require(address(_bEIGEN) != address(0),
+            "RewardAllStakersActionGenerator: bEIGEN cannot be zero address");
+        require(address(_EIGEN) != address(0),
+            "RewardAllStakersActionGenerator: EIGEN cannot be zero address");
+        CALCULATION_INTERVAL_SECONDS = _rewardsCoordinator.CALCULATION_INTERVAL_SECONDS();
         // RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS
         require(_firstSubmissionStartTimestamp % CALCULATION_INTERVAL_SECONDS == 0,
-            "RewardStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
+            "RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
 
         rewardsCoordinator = _rewardsCoordinator;
 
@@ -70,6 +77,8 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
                     })
                 );
             }
+            require(strategiesAndMultipliers[i].length != 0,
+                "RewardAllStakersActionGenerator: empty strategies array not allowed");
         }
 
         bEIGEN = _bEIGEN;
