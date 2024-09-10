@@ -79,8 +79,8 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
     function run() public {
         // deploy ActionGenerator & Hopper
         // TODO: correct amounts
-        _amounts[0] = 100;
-        _amounts[1] = 200;
+        _amounts[0] = 1e24;
+        _amounts[1] = 2e26;
         _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
             strategy: eigenStrategy,
             multiplier: 1e18
@@ -155,8 +155,9 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
         //     address strategyAddress = abi.decode(stdJson.parseRaw(existingDeploymentData, key), (address));
         //     deployedStrategyArray.push(StrategyBase(strategyAddress));
         // }
-        // TODO: above is broken because array in config is empty -- this is the WETH Strategy address
+        // TODO: above is broken because array in config is empty -- this is the WETH Strategy address and "BeaconChainETH Strategy"
         deployedStrategyArray.push(StrategyBase(address(0xD523267698C81a372191136e477fdebFa33D9FB4)));
+        deployedStrategyArray.push(StrategyBase(address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0)));
 
         // token
         proxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.token.tokenProxyAdmin"));
