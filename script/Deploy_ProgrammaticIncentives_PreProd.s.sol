@@ -57,7 +57,22 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         cheats.stopPrank();
 
-        run();
+        // set up strategy arrays and amounts array
+        _amounts[0] = 1e24;
+        _amounts[1] = 2e26;
+        _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
+            strategy: eigenStrategy,
+            multiplier: 1e18
+        }));
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
+                strategy: deployedStrategyArray[i],
+                // TODO: correct multipliers!
+                multiplier: 1e18
+            }));
+        }
+
+        deployContracts();
 
         // give tokenHopper bEIGEN minting permission and disable transfer restrictions
         cheats.startPrank(Ownable(address(beigen)).owner());
@@ -77,23 +92,13 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
     }
 
     function run() public {
-        // deploy ActionGenerator & Hopper
-        // TODO: correct amounts
-        _amounts[0] = 1e24;
-        _amounts[1] = 2e26;
-        _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
-            strategy: eigenStrategy,
-            multiplier: 1e18
-        }));
-        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-            _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
-                strategy: deployedStrategyArray[i],
-                // TODO: correct multipliers!
-                multiplier: 1e18
-            }));
-        }
-
         cheats.startBroadcast();
+        deployContracts();
+        cheats.stopBroadcast();
+    }
+
+    function deployContracts() public {
+        // deploy ActionGenerator & Hopper
         actionGenerator = new RewardAllStakersActionGenerator({
             _rewardsCoordinator: rewardsCoordinator,
             _firstSubmissionStartTimestamp: config_firstSubmissionStartTimestamp,
@@ -104,7 +109,6 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
             _EIGEN: eigen
         });
 
-        // TODO: correct config
         ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
             token: address(eigen),
             startTime: config_startTime,
@@ -117,7 +121,6 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
             config: hopperConfiguration,
             initialOwner: initialOwner
         });
-        cheats.stopBroadcast();
     }
 
     function test_ProgrammaticIncentives_Deployment() public {
@@ -156,8 +159,19 @@ contract Deploy_ProgrammaticIncentives_PreProd is Script, ProgrammaticIncentives
         //     deployedStrategyArray.push(StrategyBase(strategyAddress));
         // }
         // TODO: above is broken because array in config is empty -- this is the WETH Strategy address and "BeaconChainETH Strategy"
-        deployedStrategyArray.push(StrategyBase(address(0xD523267698C81a372191136e477fdebFa33D9FB4)));
         deployedStrategyArray.push(StrategyBase(address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0)));
+        deployedStrategyArray.push(StrategyBase(address(0xD523267698C81a372191136e477fdebFa33D9FB4)));
+
+        // check for ordering
+        address currAddress = address(0);
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            IStrategy strategy = deployedStrategyArray[i];
+            require(
+                currAddress < address(strategy),
+                "strategies must be in ascending order for submission"
+            );
+            currAddress = address(strategy);
+        }
 
         // token
         proxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.token.tokenProxyAdmin"));
