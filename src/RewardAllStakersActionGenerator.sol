@@ -68,8 +68,17 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
 
         amounts = _amounts;
 
-        for (uint256 i = 0; i < 2; ++i) {
+        for (uint256 i = 0; i < _strategiesAndMultipliers.length; ++i) {
+            require(_strategiesAndMultipliers[i].length != 0,
+                "RewardAllStakersActionGenerator: empty strategies array not allowed");
+            address currAddress = address(0);
             for (uint256 j = 0; j < _strategiesAndMultipliers[i].length; ++j) {
+                require(
+                    currAddress < address(_strategiesAndMultipliers[i][j].strategy),
+                    "RewardAllStakersActionGenerator: strategies must be in ascending order for submission"
+                );
+                currAddress = address(_strategiesAndMultipliers[i][j].strategy);
+
                 strategiesAndMultipliers[i].push(
                     IRewardsCoordinator.StrategyAndMultiplier({
                         strategy: _strategiesAndMultipliers[i][j].strategy,
@@ -77,8 +86,6 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
                     })
                 );
             }
-            require(strategiesAndMultipliers[i].length != 0,
-                "RewardAllStakersActionGenerator: empty strategies array not allowed");
         }
 
         bEIGEN = _bEIGEN;
