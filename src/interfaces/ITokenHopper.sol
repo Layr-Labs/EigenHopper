@@ -44,29 +44,42 @@ interface ITokenHopper {
      */
     struct HopperConfiguration {
         // Initial Funds
-        address token;              // Each hopper will hold exactly one token type.
-        uint256 initialAmount;      // The amount to supply the hopper on initialization.
+        // Each hopper will hold exactly one token type.
+        address token;
 
         // Behavior
-        uint256 cooldownSeconds;    // The number of seconds minimally required between each action.
-        address actionGenerator;    // The logic behind the button press for the hopper.
+        // Time at (or after) which the first button press can occur.
+        uint256 startTime;
+        // During each `cooldownSeconds` period from the `startTime`, there can be a single button press
+        uint256 cooldownSeconds;
+        // Provides the logic behind the button press for the hopper.
+        address actionGenerator;
 
         // Expiration
-        //
-        // Optionally, a hopper can expire at a specific timestamp.
-        // If set to true, the expirationTimestamp is used to disable
-        // the hopper's programmed behavior and, if any funds are left,
-        // enables the hopper owner to retrieve the funds.
-        bool    doesExpire;          // CAREFUL! Setting this to false will lock funds FOREVER! 
-        uint256 expirationTimestamp; // only considered as valid (even set to 0) if doesExpire is true  
-    } 
+        /**
+         * Optionally, a hopper can expire at a specific timestamp.
+         * If set to true, the expirationTimestamp is used to disable
+         * the hopper's programmed behavior and, if any funds are left,
+         * enables the hopper owner to retrieve the funds.
+         */
+        // CAREFUL! Setting this to false will lock funds FOREVER! 
+        bool doesExpire;
+        // only considered as valid (even set to 0) if doesExpire is true
+        uint256 expirationTimestamp;
+    }
+
+    // @notice Emitted on construction, capturing the Hopper Configuration
+    event HopperLoaded(HopperConfiguration config);
 
     /**
-     * isLoaded()
-     *
-     * @return true if the hopper has been loaded by the owner, false otherwise.
+     * @notice Emitted when `pressButton` is called successfully
+     * @param caller The address which pressed the button
+     * @param newCooldownHorizon The next time at which the button can be pressed
      */
-    function isLoaded() external view returns (bool);
+    event ButtonPressed(address indexed caller, uint256 newCooldownHorizon);
+
+    // @notice Emitted when `retrieveFunds` is called and `amount` funds are retrieved.
+    event FundsRetrieved(uint256 amount);
 
     /**
      * isExpired()
@@ -96,22 +109,6 @@ interface ITokenHopper {
      * @return true if the hopper is loaded and not in cooldown, false otherwise.
      */
     function canPress() external view returns (bool);
-
-    /**
-     * load()
-     *
-     * This method should only be called by the contracts owner,
-     * and provides the configuration to "start" the hopper's operation.
-     * Immediately after this method returns the "button" could be pressed.
-     *
-     * Subsequent calls to load() after the initial call will revert.
-     *
-     * This function will pull in initialAmount of the token, so the caller
-     * must have properly set their allowances.
-     *
-     * @param config the Hopper Configuration defining the behavior 
-     */
-    function load(HopperConfiguration calldata config) external;
 
     /**
      * pressButton()

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: MIT 
-pragma solidity ^0.8.23;
+pragma solidity ^0.8.12;
 
 // Action Generators are used by hopper owners 
 // to power the logic of the hopper's button action.
@@ -8,10 +8,9 @@ pragma solidity ^0.8.23;
 import { ITokenHopper } from "./interfaces/ITokenHopper.sol";
 import { IHopperActionGenerator } from "./interfaces/IHopperActionGenerator.sol";
 
-
 // We are going to use the standard OZ interfaces and implementations
 import "openzeppelin-contracts/contracts/access/Ownable.sol";
-import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**
  * TokenHopper
@@ -19,25 +18,26 @@ import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
  * A minimal implementation of the ITokenHopper spec.
  */
 contract TokenHopper is ITokenHopper, Ownable {
-    // Loading State
-    bool                private loaded;                    // set to true when hopper is loaded
-    HopperConfiguration private configuration;             // provided by contract owner
+    using SafeERC20 for IERC20;
+
+    // provided on construction
+    HopperConfiguration internal configuration;
 
     // Button state
-    uint256             private cooldownHorizon;           // timestamp of button re-activation
+    // timestamp of last button press
+    uint256 public latestPress;
 
-    // It's not entirely possible to load the hopper on deployment, because without
-    // a counterfactual deployment the deployer will not know what address to set
-    // approvals for.
-    constructor(address initialOwner) Ownable(initialOwner) {}
-
-    /**
-     * isLoaded()
-     *
-     * @return true if the hopper has been loaded by the owner, false otherwise.
-     */
-    function isLoaded() external view returns (bool) {
-        return loaded;
+    constructor(HopperConfiguration memory config, address initialOwner) {
+        require(config.cooldownSeconds != 0, "TokenHopper: zero cooldown not allowed");
+        require(config.token != address(0), "TokenHopper: token cannot be zeroa ddress");
+        if (config.doesExpire) {
+            require(config.expirationTimestamp > config.startTime,
+                "TokenHopper: cannot expire before starting");
+        }
+        _transferOwnership(initialOwner);
+        // set the configuration and emit an event
+        configuration = config;
+        emit HopperLoaded(config);
     }
 
     /**
@@ -76,37 +76,6 @@ contract TokenHopper is ITokenHopper, Ownable {
     }
 
     /**
-     * load()
-     *
-     * This method should only be called by the contracts owner,
-     * and provides the configuration to "start" the hopper's operation.
-     * Immediately after this method returns the "button" could be pressed.
-     *
-     * Subsequent calls to load() after the initial call will revert.
-     *
-     * This function will pull in initialAmount of the token, so the caller
-     * must have properly set their allowances.
-     *
-     * @param config the Hopper Configuration defining the behavior 
-     */
-    function load(HopperConfiguration calldata config) onlyOwner external {
-        require(!loaded, "Hopper is already loaded");
-       
-        // set the cooldown to the current block timestamp
-        // so the button can be pressed right after loading it
-        cooldownHorizon = block.timestamp;
-
-        // set the configuration
-        configuration = config;
-        loaded = true;
-
-        // pull in the tokens. this will fail if the message sender
-        // did not properly set approvals or the balance is insufficent.
-        // we must also do this last to make sure nothing silly happens,
-        assert(IERC20(configuration.token).transfer(msg.sender, configuration.initialAmount));
-    }
-
-    /**
      * pressButton()
      *
      * Any actor can call this function to initiate the set of actions in the hopper.
@@ -116,18 +85,21 @@ contract TokenHopper is ITokenHopper, Ownable {
      */
     function pressButton() external {
         // make sure we can press the button
-        require(_canPress(), "Hopper button currently unpressable.");
+        require(_canPress(), "TokenHopper.pressButton: button currently unpressable.");
 
-        // we need to immediately re-set the horizon so actions
-        // can't re-enter and press the button again. if a button isn't
-        // pressed 'right away,' then time is 'lost' and the button isn't
-        // pressable "sooner."
-        //
-        // It's the responsibility of the action generators to modulo their
-        // action generation to the same granularity as the cooldown period.
-        // its a design decision to make the action generator "stateless"
-        // and not compensate for missed button time.
-        cooldownHorizon = block.timestamp + configuration.cooldownSeconds;
+        /**
+         * We immediately set the latestPress time so that actions
+         * can't re-enter and press the button again. If a button isn't
+         * pressed during a window, then one opportunity for a button press is "lost"
+         * -- there is no "button press backlog".
+         * 
+         * It's the responsibility of the action generators to modulo their
+         * action generation to the same granularity as the cooldown period.
+         * its a design decision to make the action generator "stateless"
+         * and not compensate for missed button presses.
+         */
+
+        latestPress = block.timestamp;
 
         // grab the actions
         IHopperActionGenerator.HopperAction[] memory actions = 
@@ -137,8 +109,12 @@ contract TokenHopper is ITokenHopper, Ownable {
         // perform the actions, and make sure they were successful
         for(uint256 x = 0; x < actions.length; x++) {
             (bool success,) = (actions[x].target).call(actions[x].callData);
-            assert(success);
+            require(success, "TokenHopper.pressButton: call reverted");
         }
+
+        uint256 newCooldownHorizon =
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+        emit ButtonPressed(msg.sender, newCooldownHorizon);
     }
 
     /**
@@ -151,12 +127,13 @@ contract TokenHopper is ITokenHopper, Ownable {
      * It will also revert if the expiration date has not yet passed.
      */
      function retrieveFunds() onlyOwner external {
-        require(_isExpired(), "Hopper is not currently expired.");
+        require(_isExpired(), "TokenHopper.retrieveFunds: Hopper is not currently expired.");
 
         // move the existing balance of the token in this contract
-        // back to the caller, who must be the owner 
-        assert(IERC20(configuration.token).transferFrom(address(this), owner(),
-            IERC20(configuration.token).balanceOf(address(this))));
+        // back to the caller, who must be the owner
+        uint256 tokenBalance = IERC20(configuration.token).balanceOf(address(this));
+        IERC20(configuration.token).safeTransfer(owner(), tokenBalance);
+        emit FundsRetrieved(tokenBalance);
      }
 
      /////////////////////////////////////////////////
@@ -164,15 +141,16 @@ contract TokenHopper is ITokenHopper, Ownable {
      /////////////////////////////////////////////////
     
      function _canPress() internal view returns (bool) {
-        // hopper must be loaded, unexpired, and not in cooldown.
-        return loaded &&
-             (configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true) &&
-             block.timestamp >= cooldownHorizon;
+        // hopper must be unexpired and not yet pressed during the current period.
+        uint256 currentPeriodStart =
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds) * configuration.cooldownSeconds
+            + configuration.startTime;
+        return (configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true) &&
+            (latestPress < currentPeriodStart);
     }
     
     function _isExpired() internal view returns (bool) {
-        return loaded &&                                             // something that isn't loaded can't expire 
-               configuration.doesExpire &&                           // something that can't expire won't
+        return configuration.doesExpire &&                           // something that can't expire won't
                block.timestamp >= configuration.expirationTimestamp; // is this block past the expiration date?
     }
 }
