@@ -9,6 +9,9 @@ import "test/ProgrammaticIncentives.t.sol";
 
 // forge script script/Deploy_ProgrammaticIncentives_Testnet.s.sol:Deploy_ProgrammaticIncentives_Testnet -vvvv --private-key $PRIVATE_KEY --broadcast
 contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentivesTests {
+    // system contracts
+    ProxyAdmin public eigenLayerProxyAdmin;
+    ProxyAdmin public tokenProxyAdmin;
 
     // strategies deployed
     uint256 public numStrategiesDeployed;
@@ -61,11 +64,12 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         });
 
         // upgrade proxies
-        cheats.startPrank(proxyAdmin.owner());
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+        cheats.startPrank(tokenProxyAdmin.owner());
+        tokenProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
+        tokenProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         cheats.stopPrank();
+        cheats.prank(eigenLayerProxyAdmin.owner());
+        eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
         // TODO: correct amounts
@@ -157,6 +161,7 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         rewardsCoordinator = RewardsCoordinator(
             stdJson.readAddress(existingDeploymentData, ".addresses.rewardsCoordinator")
         );
+        eigenLayerProxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.eigenLayerProxyAdmin"));
         emptyContract = EmptyContract(stdJson.readAddress(existingDeploymentData, ".addresses.emptyContract"));
 
         // Strategies Deployed, load strategy list
@@ -188,7 +193,7 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         }
 
         // token
-        proxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.token.tokenProxyAdmin"));
+        tokenProxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.token.tokenProxyAdmin"));
         eigen = IEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.EIGEN"));
         eigenImpl = IEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.EIGENImpl"));
         beigen = IBackingEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.bEIGEN"));
