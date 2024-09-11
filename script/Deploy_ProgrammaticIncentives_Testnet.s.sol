@@ -7,6 +7,13 @@ import "eigenlayer-contracts/script/utils/ExistingDeploymentParser.sol";
 
 import "test/ProgrammaticIncentives.t.sol";
 
+interface IEigenDAStakeRegistry {
+
+    function strategyParamsByIndex(uint8 quorumNumber, uint256 index) external view returns(address, uint96);
+
+    function strategyParamsLength(uint8 quorumNumber) external view returns(uint256);
+}
+
 // forge script script/Deploy_ProgrammaticIncentives_Testnet.s.sol:Deploy_ProgrammaticIncentives_Testnet -vvvv --private-key $PRIVATE_KEY --broadcast
 contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentivesTests {
     // system contracts
@@ -32,6 +39,11 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
     uint256 public hopperConfig_expirationTimestamp = 1743033600;
 
     uint256 public hopperConfig_cooldownSeconds = 1 weeks;
+
+    // EigenDA info
+    uint8 public ETH_QUORUM_NUMBER = 0;
+    // TODO: update dependent on network
+    IEigenDAStakeRegistry public eigenDAStakeRegistry = IEigenDAStakeRegistry(0xBDACD5998989Eec814ac7A0f0f6596088AA2a270);
 
     function setUp() public override {
         string memory forkUrl = vm.envString("RPC_HOLESKY");
@@ -72,9 +84,8 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
-        // TODO: correct amounts
-        _amounts[0] = 1e24;
-        _amounts[1] = 2e26;
+        _amounts[0] = 321_855_128_516_280_769_230_770;
+        _amounts[1] = 965_565_385_548_842_307_692_308;
         _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
             strategy: eigenStrategy,
             multiplier: 1e18
@@ -82,9 +93,29 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
             _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
                 strategy: deployedStrategyArray[i],
-                // TODO: correct multipliers!
-                multiplier: 1e18
+                multiplier: 0
             }));
+        }
+
+        // fetch multipliers from EigenDA's StakeRegistry
+        uint256 strategyParamsLength = eigenDAStakeRegistry.strategyParamsLength(ETH_QUORUM_NUMBER);
+        for (uint256 i = 0; i < strategyParamsLength; ++i) {
+            (address strategyAddress, uint96 multiplier) = eigenDAStakeRegistry.strategyParamsByIndex(ETH_QUORUM_NUMBER, i);
+            for (uint256 j = 0; j < deployedStrategyArray.length; ++j) {
+                // set the multiplier and break the inner loop if the strategies match
+                if (strategyAddress == address(deployedStrategyArray[j])) {
+                    _strategiesAndMultipliers[1][j].multiplier = multiplier;
+                    break;
+                }
+            }
+        }
+        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
+            // emit log_named_uint("i", i);
+            // emit log_named_address("address(_strategiesAndMultipliers[1][i].strategy)", address(_strategiesAndMultipliers[1][i].strategy));
+            // emit log_named_uint("_strategiesAndMultipliers[1][i].multiplier", _strategiesAndMultipliers[1][i].multiplier);
+            // TODO: fix this for mainnet. on testnet it appears that EigenDA does not use WETH & has 1e18 for all its multipliers
+            _strategiesAndMultipliers[1][i].multiplier = 1e18;
+            require(_strategiesAndMultipliers[1][i].multiplier != 0, "multiplier has not been set");
         }
 
         deployContracts();
