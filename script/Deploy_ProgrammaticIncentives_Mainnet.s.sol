@@ -115,9 +115,9 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
             }
         }
         for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-            emit log_named_uint("i", i);
-            emit log_named_address("address(_strategiesAndMultipliers[1][i].strategy)", address(_strategiesAndMultipliers[1][i].strategy));
-            emit log_named_uint("_strategiesAndMultipliers[1][i].multiplier", _strategiesAndMultipliers[1][i].multiplier);
+            // emit log_named_uint("i", i);
+            // emit log_named_address("address(_strategiesAndMultipliers[1][i].strategy)", address(_strategiesAndMultipliers[1][i].strategy));
+            // emit log_named_uint("_strategiesAndMultipliers[1][i].multiplier", _strategiesAndMultipliers[1][i].multiplier);
             require(_strategiesAndMultipliers[1][i].multiplier != 0, "multiplier has not been set");
         }
 
