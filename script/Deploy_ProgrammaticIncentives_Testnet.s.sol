@@ -123,15 +123,9 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
 
         deployContracts();
 
-        // give tokenHopper bEIGEN minting permission and disable transfer restrictions
+        // give tokenHopper bEIGEN minting permission
         cheats.startPrank(Ownable(address(beigen)).owner());
-        beigen.disableTransferRestrictions();
         beigen.setIsMinter(address(tokenHopper), true);
-        cheats.stopPrank();
-
-        // disable EIGEN transfer restrictions
-        cheats.startPrank(Ownable(address(eigen)).owner());
-        eigen.disableTransferRestrictions();
         cheats.stopPrank();
 
         // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
