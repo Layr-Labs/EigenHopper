@@ -46,6 +46,9 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
     IEigenDAStakeRegistry public eigenDAStakeRegistry = IEigenDAStakeRegistry(0xBDACD5998989Eec814ac7A0f0f6596088AA2a270);
 
     function setUp() public override {
+        // TODO: override this better?
+        initialOwner = 0xfaEF7338b7490b9E272d80A1a39f4657cAf2b97d;
+
         string memory forkUrl = vm.envString("RPC_HOLESKY");
         uint256 forkId = vm.createFork(forkUrl);
         vm.selectFork(forkId);
