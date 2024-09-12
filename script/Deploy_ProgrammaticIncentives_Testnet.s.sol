@@ -65,15 +65,6 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         eigenImpl = IEigen(deployContractFromBytecode(
             abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))
         ));
-        rewardsCoordinatorImpl = new RewardsCoordinator({
-            _delegationManager: rewardsCoordinator.delegationManager(),
-            _strategyManager: rewardsCoordinator.strategyManager(),
-            _CALCULATION_INTERVAL_SECONDS: 1 weeks,
-            _MAX_REWARDS_DURATION: 10 weeks, 
-            _MAX_RETROACTIVE_LENGTH: 24 weeks,
-            _MAX_FUTURE_LENGTH: 30 days,
-            __GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
-        });
 
         // upgrade proxies
         cheats.startPrank(tokenProxyAdmin.owner());
@@ -81,7 +72,6 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         tokenProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         cheats.stopPrank();
         cheats.prank(eigenLayerProxyAdmin.owner());
-        eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
         _amounts[0] = 321_855_128_516_280_769_230_770;
