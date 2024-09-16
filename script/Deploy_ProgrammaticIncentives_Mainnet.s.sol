@@ -32,15 +32,24 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
     // Hopper config
     // GMT: Thursday, August 15, 2024 12:00:00 AM
-    uint32 public hopperConfig_firstSubmissionStartTimestamp = 1723680000;
+    uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
     // GMT: Saturday, October 5, 2024 12:00:00 AM
-    uint256 public hopperConfig_firstSubmissionTriggerCutoff = 1728086400;
+    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1728086400;
     // GMT: Thursday, September 5, 2024 12:00:00 AM
-    uint256 public hopperConfig_startTime = 1725494400;
-    // GMT: Thursday, March 27, 2025 12:00:00 AM
-    uint256 public hopperConfig_expirationTimestamp = 1743033600;
+    uint256 public constant hopperConfig_startTime = 1725494400;
+    // GMT: Thursday, August 14, 2025 12:00:00 AM -- 52 weeks after hopperConfig_firstSubmissionStartTimestamp
+    uint256 public constant hopperConfig_expirationTimestamp = 1755129600;
 
-    uint256 public hopperConfig_cooldownSeconds = 1 weeks;
+    uint256 public constant hopperConfig_cooldownSeconds = 1 weeks;
+
+    // weekly amounts
+    uint256 public constant EIGEN_stakers_weekly_distribution = 321_855_128_516_280_769_230_770;
+    uint256 public constant ETH_stakers_weekly_distribution = 965_565_385_548_842_307_692_308;
+
+    uint256 public constant totalEigenSupply = 1673646668284660000000000000;
+    uint256 public constant yearlyPercentageEigenStakers = 1;
+    uint256 public constant yearlyPercentageEthStakers = 3;
+
 
     // EigenDA info
     uint8 public ETH_QUORUM_NUMBER = 0;
@@ -48,6 +57,10 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
     function setUp() public override {
         initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
+
+        require(hopperConfig_expirationTimestamp == hopperConfig_firstSubmissionStartTimestamp + 52 weeks,
+            "expiration should be one year after start");
+
 
         string memory forkUrl = vm.envString("RPC_MAINNET");
         uint256 forkId = vm.createFork(forkUrl);
@@ -87,8 +100,18 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
         eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
-        _amounts[0] = 321_855_128_516_280_769_230_770;
-        _amounts[1] = 965_565_385_548_842_307_692_308;
+        _amounts[0] = EIGEN_stakers_weekly_distribution;
+        _amounts[1] = ETH_stakers_weekly_distribution;
+        require(_amounts[0] < _amounts[1], "ETH stakers expected to get larger share of distribution");
+        uint256 roundingMarginOfError = 100 wei;
+        require(_amounts[0] * 52 < totalEigenSupply * yearlyPercentageEigenStakers / 100 + roundingMarginOfError,
+            "EIGEN stakers getting too much");
+        require(_amounts[0] * 52 > totalEigenSupply * yearlyPercentageEigenStakers / 100 - roundingMarginOfError,
+            "EIGEN stakers getting too little");
+        require(_amounts[1] * 52 < totalEigenSupply * yearlyPercentageEthStakers / 100 + roundingMarginOfError,
+            "ETH stakers getting too much");
+        require(_amounts[1] * 52 > totalEigenSupply * yearlyPercentageEthStakers / 100 - roundingMarginOfError,
+            "ETH stakers getting too little");
         _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
             strategy: eigenStrategy,
             multiplier: 1e18
