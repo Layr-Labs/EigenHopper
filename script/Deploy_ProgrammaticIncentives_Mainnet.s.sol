@@ -14,49 +14,65 @@ interface IEigenDAStakeRegistry {
     function strategyParamsLength(uint8 quorumNumber) external view returns(uint256);
 }
 
-// forge script script/Deploy_ProgrammaticIncentives_Testnet.s.sol:Deploy_ProgrammaticIncentives_Testnet -vvvv --private-key $PRIVATE_KEY --broadcast
-contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentivesTests {
+// forge script script/Deploy_ProgrammaticIncentives_Mainnet.s.sol:Deploy_ProgrammaticIncentives_Mainnet -vvvv --private-key $PRIVATE_KEY --broadcast
+contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentivesTests {
     // system contracts
     ProxyAdmin public eigenLayerProxyAdmin;
-    ProxyAdmin public tokenProxyAdmin;
+    // TODO: only bEIGEN_ProxyAdmin is in mainnet config file
+    ProxyAdmin public EIGEN_ProxyAdmin = ProxyAdmin(address(0xB8915E195121f2B5D989Ec5727fd47a5259F1CEC));
+    ProxyAdmin public bEIGEN_ProxyAdmin = ProxyAdmin(address(0x3f5Ab2D4418d38568705bFd6672630fCC3435CC9));
 
     // strategies deployed
     uint256 public numStrategiesDeployed;
     StrategyBase[] public deployedStrategyArray;
     IStrategy public eigenStrategy;
 
-    string public deploymentPath = "lib/eigenlayer-contracts/script/configs/holesky/eigenlayer_addresses.config.json";
+    string public deploymentPath = "lib/eigenlayer-contracts/script/configs/mainnet/mainnet-addresses.config.json";
     uint256 public currentChainId;
 
     // Hopper config
     // GMT: Thursday, August 15, 2024 12:00:00 AM
-    uint32 public hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Saturday, September 14, 2024 12:00:00 AM
-    uint256 public hopperConfig_firstSubmissionTriggerCutoff = 1726272000;
-    // GMT: Thursday, September 5, 2024 12:00:00 AM
-    uint256 public hopperConfig_startTime = 1725494400;
-    // GMT: Thursday, March 27, 2025 12:00:00 AM
-    uint256 public hopperConfig_expirationTimestamp = 1743033600;
+    uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
+    // GMT: Wednesday, October 2, 2024 11:59:59 PM
+    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913599;
+    // GMT: Thursday, September 26, 2024 12:00:01 AM
+    uint256 public constant hopperConfig_startTime = 1727308801;
+    // GMT: Thursday, August 14, 2025 12:00:00 AM -- 52 weeks after hopperConfig_firstSubmissionStartTimestamp
+    uint256 public constant hopperConfig_expirationTimestamp = 1755129600;
 
-    uint256 public hopperConfig_cooldownSeconds = 1 weeks;
+    uint256 public constant hopperConfig_cooldownSeconds = 1 weeks;
+
+    // weekly amounts
+    uint256 public constant EIGEN_stakers_weekly_distribution = 321_855_128_516_280_769_230_770;
+    uint256 public constant ETH_stakers_weekly_distribution = 965_565_385_548_842_307_692_308;
+
+    uint256 public constant totalEigenSupply = 1673646668284660000000000000;
+    uint256 public constant yearlyPercentageEigenStakers = 1;
+    uint256 public constant yearlyPercentageEthStakers = 3;
+
 
     // EigenDA info
     uint8 public ETH_QUORUM_NUMBER = 0;
-    // TODO: update dependent on network
-    IEigenDAStakeRegistry public eigenDAStakeRegistry = IEigenDAStakeRegistry(0xBDACD5998989Eec814ac7A0f0f6596088AA2a270);
+    IEigenDAStakeRegistry public eigenDAStakeRegistry = IEigenDAStakeRegistry(0x006124Ae7976137266feeBFb3F4D2BE4C073139D);
 
     function setUp() public override {
-        // TODO: override this better?
-        initialOwner = 0xfaEF7338b7490b9E272d80A1a39f4657cAf2b97d;
+        initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
 
-        string memory forkUrl = vm.envString("RPC_HOLESKY");
+        require(hopperConfig_expirationTimestamp == hopperConfig_firstSubmissionStartTimestamp + 52 weeks,
+            "expiration should be one year after start");
+        require(hopperConfig_firstSubmissionTriggerCutoff / 1 weeks == hopperConfig_startTime / 1 weeks,
+            "firstSubmissionTriggerCutoff and startTime should be in same week");
+        require(hopperConfig_firstSubmissionTriggerCutoff - hopperConfig_startTime <= hopperConfig_cooldownSeconds,
+            "should not be able to trigger first submission multiple times");
+
+        string memory forkUrl = vm.envString("RPC_MAINNET");
         uint256 forkId = vm.createFork(forkUrl);
         vm.selectFork(forkId);
 
         // read and log the chainID
         currentChainId = block.chainid;
         emit log_named_uint("You are parsing on ChainID", currentChainId);
-        require(currentChainId == 17000, "script is only for holesky");
+        require(currentChainId == 1, "script is only for mainnet");
 
         // load existing, deployed addresses
         _parseDeployedContracts(deploymentPath);
@@ -79,16 +95,26 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         });
 
         // upgrade proxies
-        cheats.startPrank(tokenProxyAdmin.owner());
-        tokenProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
-        tokenProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-        cheats.stopPrank();
+        cheats.prank(EIGEN_ProxyAdmin.owner());
+        EIGEN_ProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
+        cheats.prank(bEIGEN_ProxyAdmin.owner());
+        bEIGEN_ProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
         cheats.prank(eigenLayerProxyAdmin.owner());
         eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
-        _amounts[0] = 321_855_128_516_280_769_230_770;
-        _amounts[1] = 965_565_385_548_842_307_692_308;
+        _amounts[0] = EIGEN_stakers_weekly_distribution;
+        _amounts[1] = ETH_stakers_weekly_distribution;
+        require(_amounts[0] < _amounts[1], "ETH stakers expected to get larger share of distribution");
+        uint256 roundingMarginOfError = 100 wei;
+        require(_amounts[0] * 52 < totalEigenSupply * yearlyPercentageEigenStakers / 100 + roundingMarginOfError,
+            "EIGEN stakers getting too much");
+        require(_amounts[0] * 52 > totalEigenSupply * yearlyPercentageEigenStakers / 100 - roundingMarginOfError,
+            "EIGEN stakers getting too little");
+        require(_amounts[1] * 52 < totalEigenSupply * yearlyPercentageEthStakers / 100 + roundingMarginOfError,
+            "ETH stakers getting too much");
+        require(_amounts[1] * 52 > totalEigenSupply * yearlyPercentageEthStakers / 100 - roundingMarginOfError,
+            "ETH stakers getting too little");
         _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
             strategy: eigenStrategy,
             multiplier: 1e18
@@ -102,6 +128,8 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
 
         // fetch multipliers from EigenDA's StakeRegistry
         uint256 strategyParamsLength = eigenDAStakeRegistry.strategyParamsLength(ETH_QUORUM_NUMBER);
+        assertEq(strategyParamsLength, _strategiesAndMultipliers[1].length,
+            "expected same number of strategies in ETH / LST bucket as EigenDA has in its config");
         for (uint256 i = 0; i < strategyParamsLength; ++i) {
             (address strategyAddress, uint96 multiplier) = eigenDAStakeRegistry.strategyParamsByIndex(ETH_QUORUM_NUMBER, i);
             for (uint256 j = 0; j < deployedStrategyArray.length; ++j) {
@@ -116,22 +144,29 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
             // emit log_named_uint("i", i);
             // emit log_named_address("address(_strategiesAndMultipliers[1][i].strategy)", address(_strategiesAndMultipliers[1][i].strategy));
             // emit log_named_uint("_strategiesAndMultipliers[1][i].multiplier", _strategiesAndMultipliers[1][i].multiplier);
-            // TODO: fix this for mainnet. on testnet it appears that EigenDA does not use WETH & has 1e18 for all its multipliers
-            _strategiesAndMultipliers[1][i].multiplier = 1e18;
             require(_strategiesAndMultipliers[1][i].multiplier != 0, "multiplier has not been set");
         }
 
         deployContracts();
 
-        // give tokenHopper bEIGEN minting permission
+        // give tokenHopper bEIGEN minting permission and disable transfer restrictions
         cheats.startPrank(Ownable(address(beigen)).owner());
+        beigen.disableTransferRestrictions();
         beigen.setIsMinter(address(tokenHopper), true);
+        cheats.stopPrank();
+
+        // disable EIGEN transfer restrictions
+        cheats.startPrank(Ownable(address(eigen)).owner());
+        eigen.disableTransferRestrictions();
         cheats.stopPrank();
 
         // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
         cheats.startPrank(Ownable(address(rewardsCoordinator)).owner());
         rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
         cheats.stopPrank();
+
+        // warp to start time
+        cheats.warp(hopperConfig_startTime);
     }
 
     function run() public {
@@ -182,8 +217,7 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         require(configChainId == currentChainId, "You are on the wrong chain for this config");
 
         emit log_named_string("Using addresses file", existingDeploymentInfoPath);
-        // TODO: this is not in the testnet config file
-        // emit log_named_string("- Last Updated", stdJson.readString(existingDeploymentData, ".lastUpdated"));
+        emit log_named_string("- Last Updated", stdJson.readString(existingDeploymentData, ".lastUpdated"));
 
         // read all of the deployed addresses
         rewardsCoordinator = RewardsCoordinator(
@@ -194,7 +228,7 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
 
         // Strategies Deployed, load strategy list
         numStrategiesDeployed = stdJson.readUint(existingDeploymentData, ".addresses.numStrategiesDeployed");
-        address[] memory unsortedArray = new address[](numStrategiesDeployed);
+        address[] memory unsortedArray = new address[](numStrategiesDeployed + 1);
         for (uint256 i = 0; i < numStrategiesDeployed; ++i) {
             // Form the key for the current element
             string memory key = string.concat(".addresses.strategyAddresses[", vm.toString(i), "]");
@@ -203,8 +237,11 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
             address strategyAddress = abi.decode(stdJson.parseRaw(existingDeploymentData, key), (address));
             unsortedArray[i] = strategyAddress;
         }
+        // push virtual "beacon chain ETH strategy" to array
+        unsortedArray[unsortedArray.length - 1] = 0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0;
+        // sort array and push it to storage
         address[] memory sortedArray = _sortArrayAsc(unsortedArray);
-        for (uint256 i = 0; i < numStrategiesDeployed; ++i) {
+        for (uint256 i = 0; i < sortedArray.length; ++i) {
             deployedStrategyArray.push(StrategyBase(sortedArray[i]));
         }
         require(deployedStrategyArray.length != 0, "reading from config is broken or config lacks strategy addresses");
@@ -221,7 +258,6 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
         }
 
         // token
-        tokenProxyAdmin = ProxyAdmin(stdJson.readAddress(existingDeploymentData, ".addresses.token.tokenProxyAdmin"));
         eigen = IEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.EIGEN"));
         eigenImpl = IEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.EIGENImpl"));
         beigen = IBackingEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.bEIGEN"));
