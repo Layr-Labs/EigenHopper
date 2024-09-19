@@ -147,8 +147,9 @@ contract TokenHopper is ITokenHopper, Ownable {
         uint256 currentPeriodStart =
             ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds) * configuration.cooldownSeconds
             + configuration.startTime;
-        return (configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true) &&
-            (latestPress < currentPeriodStart);
+        bool isNotExpired = configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true;
+        bool isNotPressedInCurrentPeriod = latestPress < currentPeriodStart;
+        return isNotExpired && isNotPressedInCurrentPeriod;
     }
     
     function _isExpired() internal view returns (bool) {
