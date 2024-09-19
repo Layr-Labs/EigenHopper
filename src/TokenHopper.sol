@@ -142,6 +142,7 @@ contract TokenHopper is ITokenHopper, Ownable {
      /////////////////////////////////////////////////
     
      function _canPress() internal view returns (bool) {
+        require(block.timestamp >= configuration.startTime, "TokenHopper._canPress: block.timestamp < startTime");
         // hopper must be unexpired and not yet pressed during the current period.
         uint256 currentPeriodStart =
             ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds) * configuration.cooldownSeconds

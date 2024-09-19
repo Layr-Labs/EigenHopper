@@ -100,6 +100,9 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
         uint32 duration;
         uint256[2] memory amountsToUse;
 
+        require(uint32(block.timestamp) >= firstSubmissionStartTimestamp,
+            "RewardAllStakersActionGenerator: block.timestamp < firstSubmissionStartTimestamp");
+
         // special logic for first submission
         if (block.timestamp < firstSubmissionTriggerCutoff) {
             uint32 multiple = (uint32(block.timestamp) - firstSubmissionStartTimestamp) / CALCULATION_INTERVAL_SECONDS;
