@@ -113,7 +113,8 @@ contract TokenHopper is ITokenHopper, Ownable {
         }
 
         uint256 newCooldownHorizon =
-            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
+            + configuration.startTime;
         emit ButtonPressed(msg.sender, newCooldownHorizon);
     }
 
