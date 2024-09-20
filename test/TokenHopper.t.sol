@@ -66,7 +66,8 @@ contract TokenHopperTests is Test {
 
         cheats.expectEmit(true, true, true, true, address(tokenHopper));
         uint256 newCooldownHorizon =
-            ((block.timestamp - loadedConfiguration.startTime) / loadedConfiguration.cooldownSeconds + 1) * loadedConfiguration.cooldownSeconds;
+            ((block.timestamp - loadedConfiguration.startTime) / loadedConfiguration.cooldownSeconds + 1) * loadedConfiguration.cooldownSeconds
+            + loadedConfiguration.startTime;
         emit ButtonPressed(address(this), newCooldownHorizon);
         tokenHopper.pressButton();
     }

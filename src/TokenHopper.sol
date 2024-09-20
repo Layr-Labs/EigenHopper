@@ -113,7 +113,8 @@ contract TokenHopper is ITokenHopper, Ownable {
         }
 
         uint256 newCooldownHorizon =
-            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
+            + configuration.startTime;
         emit ButtonPressed(msg.sender, newCooldownHorizon);
     }
 
@@ -141,12 +142,14 @@ contract TokenHopper is ITokenHopper, Ownable {
      /////////////////////////////////////////////////
     
      function _canPress() internal view returns (bool) {
+        require(block.timestamp >= configuration.startTime, "TokenHopper._canPress: block.timestamp < startTime");
         // hopper must be unexpired and not yet pressed during the current period.
         uint256 currentPeriodStart =
             ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds) * configuration.cooldownSeconds
             + configuration.startTime;
-        return (configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true) &&
-            (latestPress < currentPeriodStart);
+        bool isNotExpired = configuration.doesExpire ? block.timestamp < configuration.expirationTimestamp : true;
+        bool isNotPressedInCurrentPeriod = latestPress < currentPeriodStart;
+        return isNotExpired && isNotPressedInCurrentPeriod;
     }
     
     function _isExpired() internal view returns (bool) {

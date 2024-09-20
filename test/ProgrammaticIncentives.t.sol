@@ -284,7 +284,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // event for pressing button
         cheats.expectEmit(true, true, true, true, address(tokenHopper));
         uint256 newCooldownHorizon =
-            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
+            + configuration.startTime;
         emit ButtonPressed(address(this), newCooldownHorizon);
 
         tokenHopper.pressButton();
