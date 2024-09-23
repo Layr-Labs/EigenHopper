@@ -33,10 +33,10 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     // Hopper config
     // GMT: Thursday, August 15, 2024 12:00:00 AM
     uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Wednesday, October 2, 2024 11:59:59 PM
-    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913599;
-    // GMT: Thursday, September 26, 2024 12:00:01 AM
-    uint256 public constant hopperConfig_startTime = 1727308801;
+    // GMT: Wednesday, October 3, 2024 12:00:00 AM
+    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913600;
+    // GMT: Thursday, September 26, 2024 12:00:00 AM
+    uint256 public constant hopperConfig_startTime = 1727308800;
     // GMT: Thursday, August 14, 2025 12:00:00 AM -- 52 weeks after hopperConfig_firstSubmissionStartTimestamp
     uint256 public constant hopperConfig_expirationTimestamp = 1755129600;
 
@@ -60,7 +60,8 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
         require(hopperConfig_expirationTimestamp == hopperConfig_firstSubmissionStartTimestamp + 52 weeks,
             "expiration should be one year after start");
-        require(hopperConfig_firstSubmissionTriggerCutoff / 1 weeks == hopperConfig_startTime / 1 weeks,
+        // we subtract 1 here since the check in the contract does not allow equality with firstSubmissionTriggerCutoff
+        require((hopperConfig_firstSubmissionTriggerCutoff - 1) / 1 weeks == hopperConfig_startTime / 1 weeks,
             "firstSubmissionTriggerCutoff and startTime should be in same week");
         require(hopperConfig_firstSubmissionTriggerCutoff - hopperConfig_startTime <= hopperConfig_cooldownSeconds,
             "should not be able to trigger first submission multiple times");
