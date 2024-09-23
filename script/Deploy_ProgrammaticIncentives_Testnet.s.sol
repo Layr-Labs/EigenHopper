@@ -31,8 +31,8 @@ contract Deploy_ProgrammaticIncentives_Testnet is Script, ProgrammaticIncentives
     // Hopper config
     // GMT: Thursday, August 15, 2024 12:00:00 AM
     uint32 public hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Saturday, September 14, 2024 12:00:00 AM
-    uint256 public hopperConfig_firstSubmissionTriggerCutoff = 1726272000;
+    // GMT: Thursday, September 19, 2024 12:00:00 AM
+    uint256 public hopperConfig_firstSubmissionTriggerCutoff = 1726704000;
     // GMT: Thursday, September 5, 2024 12:00:00 AM
     uint256 public hopperConfig_startTime = 1725494400;
     // GMT: Thursday, March 27, 2025 12:00:00 AM

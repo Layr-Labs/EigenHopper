@@ -375,6 +375,76 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         test_pressButton();
     }
 
+    function test_pressButton_MultipleCycles_EdgeTiming() public {
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 1);
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory actions =
+            actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        uint256 expectedTotalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        // multiplier for number of weeks for first distribution
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        uint256 multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds;
+        require(multiplier > 1, "test setup is bad");
+        expectedTotalAmount = expectedTotalAmount * multiplier;
+
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly");
+        }
+        uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
+        require(endOfFirstSubmission <= block.timestamp, "endOfFirstSubmission should be in present or past");
+        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends");
+
+        // test first press
+        test_pressButton();
+
+        // move time forward to just after cutoff
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff());
+        actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+
+        totalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        expectedTotalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
+        }
+
+        require(endOfFirstSubmission == rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align");
+        require(rewardsSubmissions[0].startTimestamp == rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts");
+        require(rewardsSubmissions[0].duration == rewardsSubmissions[1].duration,
+            "array entries have different durations");
+
+        // test second press
+        test_pressButton();
+    }
+
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
     function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
         return bytestring[4:];
