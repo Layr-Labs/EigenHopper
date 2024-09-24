@@ -33,7 +33,7 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     // Hopper config
     // GMT: Thursday, August 15, 2024 12:00:00 AM
     uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Wednesday, October 3, 2024 12:00:00 AM
+    // GMT: Thursday, October 3, 2024 12:00:00 AM
     uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913600;
     // GMT: Thursday, September 26, 2024 12:00:00 AM
     uint256 public constant hopperConfig_startTime = 1727308800;
@@ -141,11 +141,15 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
                 }
             }
         }
-        for (uint256 i = 0; i < deployedStrategyArray.length; ++i) {
-            // emit log_named_uint("i", i);
-            // emit log_named_address("address(_strategiesAndMultipliers[1][i].strategy)", address(_strategiesAndMultipliers[1][i].strategy));
-            // emit log_named_uint("_strategiesAndMultipliers[1][i].multiplier", _strategiesAndMultipliers[1][i].multiplier);
-            require(_strategiesAndMultipliers[1][i].multiplier != 0, "multiplier has not been set");
+        for (uint256 i = 0; i < _strategiesAndMultipliers.length; ++i) {
+            for (uint256 j = 0; j < _strategiesAndMultipliers[i].length; ++j) {
+                // emit log_named_uint("i", i);
+                // emit log_named_uint("j", j);
+                // emit log_named_address("address(_strategiesAndMultipliers[i][j].strategy)", address(_strategiesAndMultipliers[i][j].strategy));
+                // emit log_named_uint("_strategiesAndMultipliers[i][j].multiplier", _strategiesAndMultipliers[i][j].multiplier);
+                require(_strategiesAndMultipliers[i][j].multiplier != 0, "multiplier has not been set");
+                require(_strategiesAndMultipliers[i][j].strategy != IStrategy(address(0)), "strategy address not set correctly");
+            }
         }
 
         deployContracts();
