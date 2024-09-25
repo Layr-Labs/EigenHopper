@@ -21,8 +21,8 @@ import "src/RewardAllStakersActionGenerator.sol";
 
 
 // # To deploy and verify our contract
-// forge script script/sanity_checker.s.sol -vvv --rpc-url $RPC_URL
-contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinator, BytecodeConstants {
+// forge script script/sanity_checker.s.sol -vvv
+contract FoundationIncentives_SanityChecker is ExistingDeploymentParser, BytecodeConstants {
     // Queued Transaction Proposal Data for Zero Delay
     bytes proposalDataForZeroDelay = hex"64d623530000000000000000000000000000000000000000000000000000000000000000";
 
@@ -44,29 +44,29 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
 
     // Token Addresses
     IBackingEigen public bEIGEN_proxy = IBackingEigen(0x83E9115d334D248Ce39a6f36144aEaB5b3456e75);
-    IBackingEigen public bEIGEN_implementation;
+    IBackingEigen public bEIGEN_implementation = IBackingEigen(0xF2b225815F70c9b327DC9db758A36c92A4279b17);
     IEigen public EIGEN_proxy = IEigen(0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83);
-    IEigen public EIGEN_implementation;
+    IEigen public EIGEN_implementation = IEigen(0x17f56E911C279bad67eDC08acbC9cf3DC4eF26A0);
     ProxyAdmin public eigen_ProxyAdmin = ProxyAdmin(0xB8915E195121f2B5D989Ec5727fd47a5259F1CEC);
     ProxyAdmin public bEIGEN_ProxyAdmin = ProxyAdmin(0x3f5Ab2D4418d38568705bFd6672630fCC3435CC9);
-    IERC20 public bEIGEN_addressBefore;
-    IERC20 public EIGEN_addressBefore;
+    IERC20 public bEIGEN_addressBefore = IERC20(0x83E9115d334D248Ce39a6f36144aEaB5b3456e75);
+    IERC20 public EIGEN_addressBefore = IERC20(0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83);
 
     // Hopper config  
-    TokenHopper public tokenHopper;
-    RewardAllStakersActionGenerator public actionGenerator;  
+    TokenHopper public tokenHopper = TokenHopper(0xdc948c5f7f892aA80b8AEbe31C6813C28634b891);
+    RewardAllStakersActionGenerator public actionGenerator = RewardAllStakersActionGenerator(0xF2eB394c4e04ff19422EB27411f78d00e216a88d);
 
-    // GMT: Thursday, August 15, 2024 12:00:00 AM UTC
-    uint32 public hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Saturday, September 30, 2024 12:00:00 AM 
-    // We emit an event 2 days prior to October 1st
-    uint256 public hopperConfig_firstSubmissionTriggerCutoff = 1727654400;
-    // GMT: Thursday, September 5, 2024 12:00:00 AM
-    // TODO: fine to keep this start time? 
-    uint256 public hopperConfig_startTime = 1725494400;
-    // GMT: Thursday, March 27, 2025 12:00:00 AM
-    uint256 public hopperConfig_expirationTimestamp = 1743033600;
-    uint256 public hopperConfig_cooldownSeconds = 1 weeks;
+    // Hopper config
+    // GMT: Thursday, August 15, 2024 12:00:00 AM
+    uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
+    // GMT: Thursday, October 3, 2024 12:00:00 AM
+    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913600;
+    // GMT: Thursday, September 26, 2024 12:00:00 AM
+    uint256 public constant hopperConfig_startTime = 1727308800;
+    // GMT: Thursday, August 14, 2025 12:00:00 AM -- 52 weeks after hopperConfig_firstSubmissionStartTimestamp
+    uint256 public constant hopperConfig_expirationTimestamp = 1755129600;
+
+    uint256 public constant hopperConfig_cooldownSeconds = 1 weeks;
 
     // EigenDA info
     uint8 public ETH_QUORUM_NUMBER = 0;
@@ -75,7 +75,11 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
     uint256[2] public _amounts;
     IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
-    function run() public override {
+    function run() public {
+        string memory forkUrl = vm.envString("RPC_MAINNET");
+        uint256 forkId = vm.createFork(forkUrl);
+        vm.selectFork(forkId);
+
         // Read and log the chain ID
         uint256 chainId = block.chainid;
         emit log_named_uint("You are on ChainID", chainId);
@@ -91,40 +95,47 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
 
         _parseInitialDeploymentParams("lib/eigenlayer-contracts/script/configs/mainnet/mainnet-config.config.json");
         _parseDeployedContracts("lib/eigenlayer-contracts/script/configs/mainnet/mainnet-addresses.config.json");
+        rewardsCoordinatorImplementation = RewardsCoordinator(0xb6738A8E7793D44c5895B6A6F2a62F6bF86Ba8d2);
 
         // 0. Warp to September 17th at 12pm PST
         vm.warp(firstActionTime);
 
+        // commented out because this has been completed
         // 1. Deploy new implementations for bEIGEN and EIGEN
-        deploybEIGENAndEigen();
+        // deploybEIGENAndEigen();
 
+        // commented out because this has been completed
         // 2. Queue timelock delay reduction on EIGEN timelock controller
-        queueEigenTimelockDelay();
+        // queueEigenTimelockDelay();
 
+        // commented out because this has been completed
         // 3. Deploy Rewards Coordinator
-        deployRewardsCoordinator();
+        // deployRewardsCoordinator();
 
+        // commented out because this has been completed
         // 4. Queue Upgrade for RewardsCoordinator + OpsMultisig setting
-        queueRewardsCoordinatorUpgradeAndOwnerChange();
-        actuallyQueueRCTransactions();
+        // queueRewardsCoordinatorUpgradeAndOwnerChange();
+        // actuallyQueueRCTransactions();
 
         // 5. Warp to Unlock Time
         // Note: We are now at September 25th, 2024 12:00:00 PM PST
         vm.warp(unlockTime);
 
-        // 6. Lift transfer restrictions
-        liftTransferRestrictions();
+        // 6. modify transfer restrictions
+        modifyTransferRestrictions();
 
-        // 7. Warp to firstActionTime + 10 days (This is past `bEIGENTimelockDelayScheduled` + 24 days)
+        // 7. Warp to firstActionTime + 11 days (This is past `bEIGENTimelockDelayScheduled` + 24 days)
         // Note: We set the EIGEN timelock delay here too `queueEigenTimelockDelay` was called
-        // We are now at September 27th, 2024 12:00:00 PM PST
-        vm.warp(firstActionTime + 10 days);
+        // We are now at September 28th, 2024 12:00:00 PM PST
+        vm.warp(firstActionTime + 11 days);
 
+        // commented out because this will no longer be done
         // 8. Execute bEIGEN timelock delay reduction
-        executeBEIGENTimelockDelay();
+        // executeBEIGENTimelockDelay();
 
+        // commented out because this will no longer be done
         // 9. Execute EIGEN timelock delay reduction
-        executeEigenTimelockDelay();       
+        // executeEigenTimelockDelay();       
 
         // 10. Perform bEIGEN Upgrade
         upgradebEIGEN();
@@ -139,8 +150,9 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         // 12. Execute RC actions
         executeRCActions();
 
+        // commented out because this has been completed
         // 13. Deploy Token Hopper
-        deployHopperContracts();
+        // deployHopperContracts();
 
         // 14. Make Token Hopper the minter
         giveHopperMintingRights();
@@ -149,110 +161,14 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         giveHopperRewardsForAllRole();
 
         // 16. Press Button
-        test_pressButton();
+        _test_pressButton();
         require(block.timestamp < hopperConfig_firstSubmissionTriggerCutoff, "Should have pressed button before September 30th");
     }
 
-    function deploybEIGENAndEigen() public {
-        // Sanity Check Addresses
-        bEIGEN_addressBefore = EIGEN_proxy.bEIGEN();
-        EIGEN_addressBefore = bEIGEN_proxy.EIGEN();
-
-        require(bEIGEN_addressBefore == IERC20(0x83E9115d334D248Ce39a6f36144aEaB5b3456e75),
-            "deploybEIGENAndEigen: something horribly wrong");
-        require(EIGEN_addressBefore == IERC20(0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83),
-            "deployBEIGENAndEigen: something horribly wrong");
-
-        // Begin deployment
-        vm.startBroadcast();
-
-        // Deploy new implementation contracts
-        bEIGEN_implementation = IBackingEigen(deployContractFromBytecode(
-            abi.encodePacked(beigenCreationBytecode, abi.encode(address(EIGEN_proxy)))
-        ));
-        EIGEN_implementation = IEigen(deployContractFromBytecode(
-            abi.encodePacked(eigenCreationBytecode, abi.encode(address(bEIGEN_proxy)))
-        ));
-
-        vm.stopBroadcast();
-
-        emit log_named_address("EIGEN_implementation", address(EIGEN_implementation));
-        emit log_named_address("bEIGEN_implementation", address(bEIGEN_implementation));
-    }
-
-    function queueEigenTimelockDelay() public {
-        uint256 minDelayBefore = eigen_TimelockController.getMinDelay();
-
-        require(minDelayBefore == 10 days,
-            "queueEigenTimelockDelay: something horribly wrong");
-
-        bytes memory proposalData = abi.encodeWithSelector(
-            TimelockController.updateDelay.selector,
-            newDelay
-        );
-
-        emit log_named_bytes("queue eigen timelock delay reduction data", proposalData);
-
-        vm.prank(foundationMultisig);
-        eigen_TimelockController.schedule({
-            target: address(eigen_TimelockController),
-            value: 0,
-            data: proposalData,
-            predecessor: bytes32(0),
-            salt: bytes32(0),
-            delay: minDelayBefore
-        });
-    }
-
-    function actuallyQueueRCTransactions() public {
-        vm.prank(operationsMultisig);
-        (bool success, ) = address(timelock).call(calldata_to_timelock_queuing_action);
-        require(success, "Queue RC Actions: Timelock queueTransaction failed");
-    }
-
-    function liftTransferRestrictions() public {
+    function modifyTransferRestrictions() public {
         vm.startPrank(foundationMultisig);
-        bEIGEN_proxy.disableTransferRestrictions();
-        EIGEN_proxy.disableTransferRestrictions();
+        EIGEN_proxy.setAllowedFrom(address(tokenHopper), true);
         vm.stopPrank();
-
-        require(bEIGEN_proxy.transferRestrictionsDisabledAfter() == 0,
-            "bEIGEN transfer restrictions not lifted"
-        );
-        require(IBackingEigen(address(EIGEN_proxy)).transferRestrictionsDisabledAfter() == 0,
-            "EIGEN transfer restrictions not lifted"
-        );
-    }
-
-    function executeBEIGENTimelockDelay() public {
-        vm.prank(foundationMultisig);
-
-        bEIGEN_TimelockController.execute({
-            target: address(bEIGEN_TimelockController),
-            value: 0,
-            payload: proposalDataForZeroDelay,
-            predecessor: bytes32(0),
-            salt: bytes32(0)          
-        });
-
-        require(bEIGEN_TimelockController.getMinDelay() == 0,
-            "bEIGEN timelock min delay not set to zero"
-        );
-    }
-
-    function executeEigenTimelockDelay() public {
-        vm.prank(foundationMultisig);
-        eigen_TimelockController.execute({
-            target: address(eigen_TimelockController),
-            value: 0,
-            payload: proposalDataForZeroDelay,
-            predecessor: bytes32(0),
-            salt: bytes32(0)          
-        });
-
-        require(eigen_TimelockController.getMinDelay() == 0,
-            "EIGEN timelock min delay not set to zero"
-        );
     }
 
     function upgradebEIGEN() public {
@@ -266,14 +182,15 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         emit log_named_bytes("data for bEIGEN upgrade", data);
 
         vm.startPrank(foundationMultisig);
-        bEIGEN_TimelockController.schedule({
-            target: address(bEIGEN_ProxyAdmin),
-            value: 0,
-            data: data,
-            predecessor: bytes32(0),
-            salt: bytes32(0),
-            delay: delay
-        });
+        // commented out because this has already been scheduled
+        // bEIGEN_TimelockController.schedule({
+        //     target: address(bEIGEN_ProxyAdmin),
+        //     value: 0,
+        //     data: data,
+        //     predecessor: bytes32(0),
+        //     salt: bytes32(0),
+        //     delay: delay
+        // });
         bEIGEN_TimelockController.execute({
             target: address(bEIGEN_ProxyAdmin),
             value: 0,
@@ -295,14 +212,15 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         emit log_named_bytes("data for EIGEN upgrade", data);
 
         vm.startPrank(foundationMultisig);
-        eigen_TimelockController.schedule({
-            target: address(eigen_ProxyAdmin),
-            value: 0,
-            data: data,
-            predecessor: bytes32(0),
-            salt: bytes32(0),
-            delay: delay
-        });
+        // commented out because this has already been scheduled
+        // eigen_TimelockController.schedule({
+        //     target: address(eigen_ProxyAdmin),
+        //     value: 0,
+        //     data: data,
+        //     predecessor: bytes32(0),
+        //     salt: bytes32(0),
+        //     delay: delay
+        // });
         eigen_TimelockController.execute({
             target: address(eigen_ProxyAdmin),
             value: 0,
@@ -314,45 +232,25 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
     }
 
     function executeRCActions() public {
+        address rewardsCoordinatorOwnerBefore = address(rewardsCoordinator.owner());
+        address timelockTarget = executorMultisig;
+        bytes memory timelockSignature;
+        bytes memory final_calldata_to_executor_multisig = hex"6A76120200000000000000000000000040A2ACCBD92BCA938B02010E17A5B8929B49130D0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002E000000000000000000000000000000000000000000000000000000000000001648D80FF0A00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000112008B9566ADA63B64D1E1DCF1418B43FD1433B724440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004499A88EC40000000000000000000000007750D328B314EFFA365A0402CCFD489B80B0ADDA000000000000000000000000B6738A8E7793D44C5895B6A6F2A62F6BF86BA8D2007750D328B314EFFA365A0402CCFD489B80B0ADDA00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000024F2FDE38B000000000000000000000000BE1685C81AA44FF9FB319DD389ADDD9374383E900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000A6DB1A8C5A981D1536266D2A393C5F8DDB210EAF00000000000000000000000000000000000000000000000000000000000000000100000000000000000000000000000000000000000000000000000000000000";
+        uint256 timelockEta = 1727474400;
+        bytes memory calldata_to_timelock_executing_action = abi.encodeWithSelector(ITimelock.executeTransaction.selector,
+            0x369e6F597e22EaB55fFb173C6d9cD234BD699111, //timelockTarget
+            0, //timelockValue
+            timelockSignature,
+            final_calldata_to_executor_multisig,
+            timelockEta
+        );
+        // bytes memory calldata_to_timelock_executing_action = hex"0825f38f000000000000000000000000369e6f597e22eab55ffb173c6d9cd234bd699111000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000a000000000000000000000000000000000000000000000000000000000000000e00000000000000000000000000000000000000000000000000000000066f72ae00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000003646a76120200000000000000000000000040a2accbd92bca938b02010e17a5b8929b49130d0000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000014000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000002e000000000000000000000000000000000000000000000000000000000000001648d80ff0a00000000000000000000000000000000000000000000000000000000000000200000000000000000000000000000000000000000000000000000000000000112008b9566ada63b64d1e1dcf1418b43fd1433b724440000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000004499a88ec40000000000000000000000007750d328b314effa365a0402ccfd489b80b0adda000000000000000000000000b6738a8e7793d44c5895b6a6f2a62f6bf86ba8d2007750d328b314effa365a0402ccfd489b80b0adda00000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000024f2fde38b000000000000000000000000be1685c81aa44ff9fb319dd389addd9374383e900000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000041000000000000000000000000a6db1a8c5a981d1536266d2a393c5f8ddb210eaf0000000000000000000000000000000000000000000000000000000000000000010000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000000";
         vm.prank(operationsMultisig);
         (bool success, ) = address(timelock).call(calldata_to_timelock_executing_action);
         require(success, "Timelock executeTransaction failed");
 
         // Assert owner
         assertEq(address(rewardsCoordinator.owner()), address(operationsMultisig), "rewardsCoordinator owner is not operations multisig");
-    }
-
-    function deployHopperContracts() public {
-        _setupHopperConfigs();
-
-        vm.startBroadcast();
-
-        // deploy ActionGenerator & Hopper
-        actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: rewardsCoordinator,
-            _firstSubmissionStartTimestamp: hopperConfig_firstSubmissionStartTimestamp,
-            _firstSubmissionTriggerCutoff: hopperConfig_firstSubmissionTriggerCutoff,
-            _amounts: _amounts,
-            _strategiesAndMultipliers: _strategiesAndMultipliers,
-            _bEIGEN: bEIGEN_proxy,
-            _EIGEN: EIGEN_proxy
-        });
-
-        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
-            token: address(EIGEN_proxy),
-            startTime: hopperConfig_startTime,
-            cooldownSeconds: hopperConfig_cooldownSeconds,
-            actionGenerator: address(actionGenerator),
-            doesExpire: true,
-            expirationTimestamp: hopperConfig_expirationTimestamp 
-        });
-        tokenHopper = new TokenHopper({
-            config: hopperConfiguration,
-            initialOwner: foundationMultisig
-        });
-
-        vm.stopBroadcast();
-
     }
 
     function giveHopperMintingRights() public {
@@ -447,7 +345,7 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         return arr;
     }
 
-    function checkUpgradeCorrectness() public {
+    function checkUpgradeCorrectness() public view {
         require(eigen_ProxyAdmin.getProxyImplementation(TransparentUpgradeableProxy(payable(address(EIGEN_proxy)))) == address(EIGEN_implementation),
             "implementation set incorrectly");
         require(EIGEN_proxy.bEIGEN() == bEIGEN_addressBefore,
@@ -499,7 +397,7 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         return deployedContract;
     }
 
-    function test_pressButton() public {
+    function _test_pressButton() public {
         uint256 rewardsCoordinatorEigenBalanceBefore = EIGEN_proxy.balanceOf(address(rewardsCoordinator));
         uint256 eigenTotalSupplyBefore = EIGEN_proxy.totalSupply();
         uint256 beigenTotalSupplyBefore = bEIGEN_proxy.totalSupply();
@@ -566,7 +464,8 @@ contract FoundationIncentives_SanityChecker is Upgrade_Mainnet_RewardsCoordinato
         // event for pressing button
         vm.expectEmit(true, true, true, true, address(tokenHopper));
         uint256 newCooldownHorizon =
-            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds;
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
+            + configuration.startTime;
         emit ButtonPressed(address(this), newCooldownHorizon);
 
         tokenHopper.pressButton();
