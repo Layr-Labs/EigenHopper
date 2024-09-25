@@ -21,7 +21,7 @@ import "src/RewardAllStakersActionGenerator.sol";
 
 
 // # To deploy and verify our contract
-// forge script script/sanity_checker.s.sol -vvv
+// forge script script/sanity_checker.s.sol:FoundationIncentives_SanityChecker -vvv
 contract FoundationIncentives_SanityChecker is ExistingDeploymentParser, BytecodeConstants {
     // Queued Transaction Proposal Data for Zero Delay
     bytes proposalDataForZeroDelay = hex"64d623530000000000000000000000000000000000000000000000000000000000000000";
