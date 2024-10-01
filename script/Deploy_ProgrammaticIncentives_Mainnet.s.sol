@@ -37,8 +37,8 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913600;
     // GMT: Thursday, September 26, 2024 12:00:00 AM
     uint256 public constant hopperConfig_startTime = 1727308800;
-    // GMT: Thursday, August 14, 2025 12:00:00 AM -- 52 weeks after hopperConfig_firstSubmissionStartTimestamp
-    uint256 public constant hopperConfig_expirationTimestamp = 1755129600;
+    // effectively infinitely far in the future -- also doesn't matter with `doesExpire` set to 'false'
+    uint256 public constant hopperConfig_expirationTimestamp = type(uint256).max;
 
     uint256 public constant hopperConfig_cooldownSeconds = 1 weeks;
 
@@ -58,8 +58,8 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     function setUp() public override {
         initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
 
-        require(hopperConfig_expirationTimestamp == hopperConfig_firstSubmissionStartTimestamp + 52 weeks,
-            "expiration should be one year after start");
+        require(hopperConfig_expirationTimestamp == type(uint256).max,
+            "expiration should be indefinitely in future");
         // we subtract 1 here since the check in the contract does not allow equality with firstSubmissionTriggerCutoff
         require((hopperConfig_firstSubmissionTriggerCutoff - 1) / 1 weeks == hopperConfig_startTime / 1 weeks,
             "firstSubmissionTriggerCutoff and startTime should be in same week");
@@ -182,22 +182,14 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
     function deployContracts() public {
         // deploy ActionGenerator & Hopper
-        actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: rewardsCoordinator,
-            _firstSubmissionStartTimestamp: hopperConfig_firstSubmissionStartTimestamp,
-            _firstSubmissionTriggerCutoff: hopperConfig_firstSubmissionTriggerCutoff,
-            _amounts: _amounts,
-            _strategiesAndMultipliers: _strategiesAndMultipliers,
-            _bEIGEN: beigen,
-            _EIGEN: eigen
-        });
+        actionGenerator = RewardAllStakersActionGenerator(0xF2eB394c4e04ff19422EB27411f78d00e216a88d);
 
         ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
             token: address(eigen),
             startTime: hopperConfig_startTime,
             cooldownSeconds: hopperConfig_cooldownSeconds,
             actionGenerator: address(actionGenerator),
-            doesExpire: true,
+            doesExpire: false,
             expirationTimestamp: hopperConfig_expirationTimestamp 
         });
         tokenHopper = new TokenHopper({

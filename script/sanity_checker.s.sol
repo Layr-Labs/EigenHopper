@@ -53,7 +53,7 @@ contract FoundationIncentives_SanityChecker is ExistingDeploymentParser, Bytecod
     IERC20 public EIGEN_addressBefore = IERC20(0xec53bF9167f50cDEB3Ae105f56099aaaB9061F83);
 
     // Hopper config  
-    TokenHopper public tokenHopper = TokenHopper(0xdc948c5f7f892aA80b8AEbe31C6813C28634b891);
+    TokenHopper public tokenHopper = TokenHopper(0x708230Be53c08b270F43e068116EBacc4C13F577);
     RewardAllStakersActionGenerator public actionGenerator = RewardAllStakersActionGenerator(0xF2eB394c4e04ff19422EB27411f78d00e216a88d);
 
     // Hopper config
