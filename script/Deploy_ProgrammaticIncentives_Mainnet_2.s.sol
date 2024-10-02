@@ -197,13 +197,25 @@ contract Deploy_ProgrammaticIncentives_Mainnet_2 is Script, ProgrammaticIncentiv
                 "start timestamps are not different by exactly one week");
         }
 
+        require(actionGenerator.firstSubmissionTriggerCutoff() < block.timestamp,
+            "should not be able to trigger first submission again");
+
         // press button on new hopper and then old hopper
         test_pressButton();
         TokenHopper newHopper = tokenHopper;
         RewardAllStakersActionGenerator newActionGenerator = actionGenerator;
         tokenHopper = previousTokenHopper;
         actionGenerator = previousActionGenerator;
-        test_pressButton();        
+        test_pressButton();
+
+        // remove minting rights from previous TokenHopper contract and verify that trying to use it fails
+        cheats.startPrank(Ownable(address(beigen)).owner());
+        beigen.setIsMinter(address(previousTokenHopper), false);
+        cheats.stopPrank();
+
+        cheats.warp(block.timestamp + 1 weeks);
+        cheats.expectRevert("TokenHopper.pressButton: call reverted");
+        previousTokenHopper.pressButton();
     }
 
     // taken from ExistingDeploymentParser; edited to resolve compiler errors due to duplicate storage with ProgrammaticIncentivesTests
