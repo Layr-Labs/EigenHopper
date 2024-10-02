@@ -286,15 +286,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         uint256 newCooldownHorizon =
             ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
             + configuration.startTime;
-        if (block.chainid == 17000
-            && (address(tokenHopper) == 0x2B35f55ad87900Db6479AEdD9eB2c53C58cf85d9 ||
-                address(tokenHopper) == 0x8DaaE33cB2da8dA23595ADB19f271EF41E34bd8C)
-        ) {
-            emit ButtonPressed(address(this), newCooldownHorizon - configuration.startTime);
-
-        } else {
-            emit ButtonPressed(address(this), newCooldownHorizon);
-        }
+        emit ButtonPressed(address(this), newCooldownHorizon);
 
         tokenHopper.pressButton();
 
@@ -439,10 +431,6 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         // move time forward to just after cutoff
         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff());
-        // special case for testnet deployment that needs a greater shift
-        if (block.chainid == 17000) {
-            cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() + 5 days);
-        }
         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
