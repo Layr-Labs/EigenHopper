@@ -105,7 +105,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
 
         // special logic for first submission
         if (block.timestamp < firstSubmissionTriggerCutoff) {
-            uint32 multiple = (uint32(block.timestamp) - firstSubmissionStartTimestamp) / CALCULATION_INTERVAL_SECONDS;
+            uint32 multiple = (uint32(block.timestamp) - firstSubmissionStartTimestamp) / CALCULATION_INTERVAL_SECONDS + 1;
             duration = CALCULATION_INTERVAL_SECONDS * multiple;
 
             startTimestamp = firstSubmissionStartTimestamp;
@@ -119,8 +119,8 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
             // find the correct startTimestamp.
             // RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS
             uint32 calculationIntervalNumber = uint32(block.timestamp) / CALCULATION_INTERVAL_SECONDS;
-            // after rounding to the latest completed calculation interval to find the end, we subtract out the duration to get the start
-            startTimestamp = (calculationIntervalNumber * CALCULATION_INTERVAL_SECONDS) - duration;
+            // round to the latest completed calculation interval to find the start
+            startTimestamp = (calculationIntervalNumber * CALCULATION_INTERVAL_SECONDS);
 
             amountsToUse[0] = amounts[0];
             amountsToUse[1] = amounts[1];

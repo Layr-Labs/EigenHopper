@@ -14,8 +14,8 @@ interface IEigenDAStakeRegistry {
     function strategyParamsLength(uint8 quorumNumber) external view returns(uint256);
 }
 
-// forge script script/Deploy_ProgrammaticIncentives_Mainnet.s.sol:Deploy_ProgrammaticIncentives_Mainnet -vvvv --private-key $PRIVATE_KEY --broadcast
-contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentivesTests {
+// forge script script/Deploy_ProgrammaticIncentives_Mainnet_2.s.sol:Deploy_ProgrammaticIncentives_Mainnet_2 -vvvv --private-key $PRIVATE_KEY --broadcast
+contract Deploy_ProgrammaticIncentives_Mainnet_2 is Script, ProgrammaticIncentivesTests {
     // system contracts
     ProxyAdmin public eigenLayerProxyAdmin;
     // TODO: only bEIGEN_ProxyAdmin is in mainnet config file
@@ -30,18 +30,6 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     string public deploymentPath = "lib/eigenlayer-contracts/script/configs/mainnet/mainnet-addresses.config.json";
     uint256 public currentChainId;
 
-    // Hopper config
-    // GMT: Thursday, August 15, 2024 12:00:00 AM
-    uint32 public constant hopperConfig_firstSubmissionStartTimestamp = 1723680000;
-    // GMT: Thursday, October 3, 2024 12:00:00 AM
-    uint256 public constant hopperConfig_firstSubmissionTriggerCutoff = 1727913600;
-    // GMT: Thursday, September 26, 2024 12:00:00 AM
-    uint256 public constant hopperConfig_startTime = 1727308800;
-    // effectively infinitely far in the future -- also doesn't matter with `doesExpire` set to 'false'
-    uint256 public constant hopperConfig_expirationTimestamp = type(uint256).max;
-
-    uint256 public constant hopperConfig_cooldownSeconds = 1 weeks;
-
     // weekly amounts
     uint256 public constant EIGEN_stakers_weekly_distribution = 321_855_128_516_280_769_230_770;
     uint256 public constant ETH_stakers_weekly_distribution = 965_565_385_548_842_307_692_308;
@@ -50,6 +38,10 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     uint256 public constant yearlyPercentageEigenStakers = 1;
     uint256 public constant yearlyPercentageEthStakers = 3;
 
+    // existing set of contracts with retrospective instead of prospective distributions
+    RewardAllStakersActionGenerator public previousActionGenerator =
+        RewardAllStakersActionGenerator(0xF2eB394c4e04ff19422EB27411f78d00e216a88d);
+    TokenHopper public previousTokenHopper = TokenHopper(0x708230Be53c08b270F43e068116EBacc4C13F577);
 
     // EigenDA info
     uint8 public ETH_QUORUM_NUMBER = 0;
@@ -57,14 +49,6 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
     function setUp() public override {
         initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
-
-        require(hopperConfig_expirationTimestamp == type(uint256).max,
-            "expiration should be indefinitely in future");
-        // we subtract 1 here since the check in the contract does not allow equality with firstSubmissionTriggerCutoff
-        require((hopperConfig_firstSubmissionTriggerCutoff - 1) / 1 weeks == hopperConfig_startTime / 1 weeks,
-            "firstSubmissionTriggerCutoff and startTime should be in same week");
-        require(hopperConfig_firstSubmissionTriggerCutoff - hopperConfig_startTime <= hopperConfig_cooldownSeconds,
-            "should not be able to trigger first submission multiple times");
 
         string memory forkUrl = vm.envString("RPC_MAINNET");
         uint256 forkId = vm.createFork(forkUrl);
@@ -77,31 +61,6 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
         // load existing, deployed addresses
         _parseDeployedContracts(deploymentPath);
-
-        // deploy implementations
-        beigenImpl = IBackingEigen(deployContractFromBytecode(
-            abi.encodePacked(beigenCreationBytecode, abi.encode(address(eigen)))
-        ));
-        eigenImpl = IEigen(deployContractFromBytecode(
-            abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))
-        ));
-        rewardsCoordinatorImpl = new RewardsCoordinator({
-            _delegationManager: rewardsCoordinator.delegationManager(),
-            _strategyManager: rewardsCoordinator.strategyManager(),
-            _CALCULATION_INTERVAL_SECONDS: 1 weeks,
-            _MAX_REWARDS_DURATION: 10 weeks, 
-            _MAX_RETROACTIVE_LENGTH: 24 weeks,
-            _MAX_FUTURE_LENGTH: 30 days,
-            __GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
-        });
-
-        // upgrade proxies
-        cheats.prank(EIGEN_ProxyAdmin.owner());
-        EIGEN_ProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
-        cheats.prank(bEIGEN_ProxyAdmin.owner());
-        bEIGEN_ProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-        cheats.prank(eigenLayerProxyAdmin.owner());
-        eigenLayerProxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // set up strategy arrays and amounts array
         _amounts[0] = EIGEN_stakers_weekly_distribution;
@@ -154,24 +113,15 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
         deployContracts();
 
-        // give tokenHopper bEIGEN minting permission and disable transfer restrictions
+        // give tokenHopper bEIGEN minting permission
         cheats.startPrank(Ownable(address(beigen)).owner());
-        beigen.disableTransferRestrictions();
         beigen.setIsMinter(address(tokenHopper), true);
-        cheats.stopPrank();
-
-        // disable EIGEN transfer restrictions
-        cheats.startPrank(Ownable(address(eigen)).owner());
-        eigen.disableTransferRestrictions();
         cheats.stopPrank();
 
         // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
         cheats.startPrank(Ownable(address(rewardsCoordinator)).owner());
         rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
         cheats.stopPrank();
-
-        // warp to start time
-        cheats.warp(hopperConfig_startTime);
     }
 
     function run() public {
@@ -182,16 +132,20 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
 
     function deployContracts() public {
         // deploy ActionGenerator & Hopper
-        actionGenerator = RewardAllStakersActionGenerator(0xF2eB394c4e04ff19422EB27411f78d00e216a88d);
-
-        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
-            token: address(eigen),
-            startTime: hopperConfig_startTime,
-            cooldownSeconds: hopperConfig_cooldownSeconds,
-            actionGenerator: address(actionGenerator),
-            doesExpire: false,
-            expirationTimestamp: hopperConfig_expirationTimestamp 
+        actionGenerator = new RewardAllStakersActionGenerator({
+            _rewardsCoordinator: rewardsCoordinator,
+            _firstSubmissionStartTimestamp: previousActionGenerator.firstSubmissionStartTimestamp(),
+            _firstSubmissionTriggerCutoff: previousActionGenerator.firstSubmissionTriggerCutoff(),
+            _amounts: _amounts,
+            _strategiesAndMultipliers: _strategiesAndMultipliers,
+            _bEIGEN: beigen,
+            _EIGEN: eigen
         });
+
+        // fetch config from previous deployment, but replace the action generator
+        ITokenHopper.HopperConfiguration memory hopperConfiguration = previousTokenHopper.getHopperConfiguration();
+        hopperConfiguration.actionGenerator = address(actionGenerator);
+
         tokenHopper = new TokenHopper({
             config: hopperConfiguration,
             initialOwner: initialOwner
@@ -199,7 +153,57 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
     }
 
     function test_ProgrammaticIncentives_Deployment() public {
+        // TODO: change this?
+        cheats.warp(1727913601);
+
+        IRewardsCoordinator.RewardsSubmission[] memory oldHopperRewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory oldHopperActions =
+            previousActionGenerator.generateHopperActions(address(previousTokenHopper), address(eigen));
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(oldHopperActions[4].callData);
+        oldHopperRewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+        
+        IRewardsCoordinator.RewardsSubmission[] memory newHopperRewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory newHopperActions =
+            actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(newHopperActions[4].callData);
+        newHopperRewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinator.RewardsSubmission[])
+        );
+
+        for (uint256 i = 0; i < newHopperRewardsSubmissions.length; ++i) {
+            assertEq(newHopperRewardsSubmissions[i].amount, oldHopperRewardsSubmissions[i].amount,
+                "amounts do not match");
+            for (uint256 j = 0; j < newHopperRewardsSubmissions[i].strategiesAndMultipliers.length; ++j) {
+                assertEq(uint256(
+                    newHopperRewardsSubmissions[i].strategiesAndMultipliers[j].multiplier),
+                    uint256(oldHopperRewardsSubmissions[i].strategiesAndMultipliers[j].multiplier),
+                    "multipliers do not match"
+                );
+                assertEq(
+                    address(newHopperRewardsSubmissions[i].strategiesAndMultipliers[j].strategy),
+                    address(oldHopperRewardsSubmissions[i].strategiesAndMultipliers[j].strategy),
+                    "strategies do not match"
+                );
+            }
+            assertEq(address(newHopperRewardsSubmissions[i].token), address(oldHopperRewardsSubmissions[i].token),
+                "tokens do not match");
+            assertEq(newHopperRewardsSubmissions[i].duration, oldHopperRewardsSubmissions[i].duration,
+                "durations do not match");
+            assertEq(newHopperRewardsSubmissions[i].startTimestamp, oldHopperRewardsSubmissions[i].startTimestamp + 1 weeks,
+                "start timestamps are not different by exactly one week");
+        }
+
+        // press button on new hopper and then old hopper
         test_pressButton();
+        TokenHopper newHopper = tokenHopper;
+        RewardAllStakersActionGenerator newActionGenerator = actionGenerator;
+        tokenHopper = previousTokenHopper;
+        actionGenerator = previousActionGenerator;
+        test_pressButton();        
     }
 
     // taken from ExistingDeploymentParser; edited to resolve compiler errors due to duplicate storage with ProgrammaticIncentivesTests
@@ -260,20 +264,5 @@ contract Deploy_ProgrammaticIncentives_Mainnet is Script, ProgrammaticIncentives
         beigen = IBackingEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.bEIGEN"));
         beigenImpl = IBackingEigen(stdJson.readAddress(existingDeploymentData, ".addresses.token.bEIGENImpl"));
         eigenStrategy = EigenStrategy(stdJson.readAddress(existingDeploymentData, ".addresses.token.eigenStrategy"));
-    }
-
-    /// @dev Sort to ensure that the array is in ascending order for strategies
-    function _sortArrayAsc(address[] memory arr) internal pure returns (address[] memory) {
-        uint256 l = arr.length;
-        for (uint256 i = 0; i < l; i++) {
-            for (uint256 j = i + 1; j < l; j++) {
-                if (address(arr[i]) > address(arr[j])) {
-                    address temp = arr[i];
-                    arr[i] = arr[j];
-                    arr[j] = temp;
-                }
-            }
-        }
-        return arr;
     }
 }
