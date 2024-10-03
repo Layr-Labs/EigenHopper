@@ -201,11 +201,50 @@ contract Deploy_ProgrammaticIncentives_Mainnet_2 is Script, ProgrammaticIncentiv
             "should not be able to trigger first submission again");
 
         // press button on new hopper and then old hopper
+        // Check the timestamp and duration of very first submission on new hopper
+        uint32 newHopperExpectedStartTimestamp = 1727913600;
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        {
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(tokenHopper));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinator.RewardsSubmission[])
+            );
+        }
+        assertEq(rewardsSubmissions[0].startTimestamp, newHopperExpectedStartTimestamp);
+        assertEq(rewardsSubmissions[0].duration, 1 weeks);
+        assertEq(rewardsSubmissions[1].startTimestamp, newHopperExpectedStartTimestamp);
+        assertEq(rewardsSubmissions[1].duration, 1 weeks);
+        console.log("First submission start timestamp on new hopper is at: ", newHopperExpectedStartTimestamp);
+        console.log("First submission on new hopper ends at: ", newHopperExpectedStartTimestamp + 1 weeks);
+        console.log("Hopper pressed at: ", block.timestamp);
         test_pressButton();
+
         TokenHopper newHopper = tokenHopper;
         RewardAllStakersActionGenerator newActionGenerator = actionGenerator;
         tokenHopper = previousTokenHopper;
         actionGenerator = previousActionGenerator;
+
+        // Check the timestamp & duration of the old hopper
+        uint32 oldHopperExpectedStartTimestamp = 1727308800; // Thursday September 26th
+        {
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(tokenHopper));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinator.RewardsSubmission[])
+            );
+        }
+        assertEq(rewardsSubmissions[0].startTimestamp, oldHopperExpectedStartTimestamp);
+        assertEq(rewardsSubmissions[0].duration, 1 weeks);
+        assertEq(rewardsSubmissions[1].startTimestamp, oldHopperExpectedStartTimestamp);
+        assertEq(rewardsSubmissions[1].duration, 1 weeks);
+        console.log("Second and last submission start timestamp old hopper is at: ", oldHopperExpectedStartTimestamp);
+        console.log("Second and last submission on old hopper ends at: ", oldHopperExpectedStartTimestamp + 1 weeks);
+        console.log("Hopper pressed at: ", block.timestamp);
         test_pressButton();
 
         // remove minting rights from previous TokenHopper contract and verify that trying to use it fails
@@ -216,6 +255,76 @@ contract Deploy_ProgrammaticIncentives_Mainnet_2 is Script, ProgrammaticIncentiv
         cheats.warp(block.timestamp + 1 weeks);
         cheats.expectRevert("TokenHopper.pressButton: call reverted");
         previousTokenHopper.pressButton();
+
+        // Reset hopper address
+        tokenHopper = newHopper;
+        actionGenerator = newActionGenerator;
+        _sanityCheckTimestamps();
+    }
+
+    function _sanityCheckTimestamps() internal {
+        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        uint32 secondHopperPressStartTimestamp = 1728518400;
+
+        // Revert when try to press button again on hopper
+        cheats.warp(block.timestamp - 1 weeks);
+        cheats.expectRevert();
+        tokenHopper.pressButton();
+        console.log("Could not press button on new hopper AGAIN at: ", block.timestamp);
+
+        // Warp time to just before cooldown ends
+        cheats.warp(block.timestamp + 1 weeks - 2);
+        cheats.expectRevert();
+        tokenHopper.pressButton();
+        console.log("Could not press button on new hopper AGAIN at: ", block.timestamp);
+
+        // Warp time to when you can press button a second time
+        cheats.warp(block.timestamp + 1);
+        assertEq(block.timestamp % 604800, 0);
+        {
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(tokenHopper));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinator.RewardsSubmission[])
+            );
+        }
+        assertEq(rewardsSubmissions[0].startTimestamp, secondHopperPressStartTimestamp);
+        assertEq(rewardsSubmissions[0].duration, 1 weeks);
+        assertEq(rewardsSubmissions[1].startTimestamp, secondHopperPressStartTimestamp);
+        assertEq(rewardsSubmissions[1].duration, 1 weeks);
+        console.log("Second submission start timestamp on new hopper is at: ", secondHopperPressStartTimestamp);
+        console.log("Second submission on new hopper ends at: ", secondHopperPressStartTimestamp + 1 weeks);
+        console.log("Pressed hopper a second time at: ", block.timestamp);
+        tokenHopper.pressButton();
+
+        // Warp time to just before 1 week
+        cheats.warp(block.timestamp + 1 weeks - 1);
+        cheats.expectRevert();
+        tokenHopper.pressButton();
+
+        // Warp time up by 1 second
+        cheats.warp(block.timestamp + 86400);
+        {
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(tokenHopper));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinator.RewardsSubmission[])
+            );
+        }
+        uint32 thirdHopperPressStartTimestamp = secondHopperPressStartTimestamp + 604800;
+        assertEq(rewardsSubmissions[0].startTimestamp, thirdHopperPressStartTimestamp);
+        assertEq(rewardsSubmissions[0].duration, 1 weeks);
+        assertEq(rewardsSubmissions[1].startTimestamp, thirdHopperPressStartTimestamp);
+        assertEq(rewardsSubmissions[1].duration, 1 weeks);
+        console.log("Third submission start timestamp on new hopper is at: ", thirdHopperPressStartTimestamp);
+        console.log("Third submission on new hopper ends at: ", thirdHopperPressStartTimestamp + 1 weeks);
+        console.log("Pressed hopper a 3rd time at: ", block.timestamp);
+        tokenHopper.pressButton();
+
     }
 
     // taken from ExistingDeploymentParser; edited to resolve compiler errors due to duplicate storage with ProgrammaticIncentivesTests
