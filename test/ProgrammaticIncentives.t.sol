@@ -325,8 +325,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         }
         // multiplier for number of weeks for first distribution
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-        uint256 multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds;
-        require(multiplier > 1, "test setup is bad");
+        uint256 multiplier;
+        if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
+            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+        } else {
+            multiplier = 1;
+        }
+        require(multiplier != 0, "test setup is bad");
         expectedTotalAmount = expectedTotalAmount * multiplier;
 
         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
@@ -335,7 +340,10 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
                 "amount in rewardsSubmission is not multiplied correctly");
         }
         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-        require(endOfFirstSubmission <= block.timestamp, "endOfFirstSubmission should be in present or past");
+        require(endOfFirstSubmission > block.timestamp,
+            "endOfFirstSubmission should be after the present time");
+        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future");
         require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
             "array entries have different ends");
 
@@ -364,11 +372,11 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
         }
 
-        require(endOfFirstSubmission == rewardsSubmissions[0].startTimestamp,
+        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
             "end of first submission and start of second should align");
-        require(rewardsSubmissions[0].startTimestamp == rewardsSubmissions[1].startTimestamp,
+        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
             "array entries have different starts");
-        require(rewardsSubmissions[0].duration == rewardsSubmissions[1].duration,
+        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
             "array entries have different durations");
 
         // test second press
@@ -395,8 +403,14 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         }
         // multiplier for number of weeks for first distribution
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-        uint256 multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds;
-        require(multiplier > 1, "test setup is bad");
+        uint256 multiplier;
+        if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
+            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+        } else {
+            multiplier = 1;
+        }
+        // emit log_named_uint("multiplier", multiplier);
+        require(multiplier != 0, "test setup is bad");
         expectedTotalAmount = expectedTotalAmount * multiplier;
 
         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
@@ -405,7 +419,10 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
                 "amount in rewardsSubmission is not multiplied correctly");
         }
         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-        require(endOfFirstSubmission <= block.timestamp, "endOfFirstSubmission should be in present or past");
+        require(endOfFirstSubmission > block.timestamp,
+            "endOfFirstSubmission should be after the present time");
+        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future");
         require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
             "array entries have different ends");
 
@@ -434,11 +451,11 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
         }
 
-        require(endOfFirstSubmission == rewardsSubmissions[0].startTimestamp,
+        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
             "end of first submission and start of second should align");
-        require(rewardsSubmissions[0].startTimestamp == rewardsSubmissions[1].startTimestamp,
+        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
             "array entries have different starts");
-        require(rewardsSubmissions[0].duration == rewardsSubmissions[1].duration,
+        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
             "array entries have different durations");
 
         // test second press
@@ -448,5 +465,20 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
     function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
         return bytestring[4:];
+    }
+
+    /// @dev Sort to ensure that the array is in ascending order for strategies
+    function _sortArrayAsc(address[] memory arr) internal pure returns (address[] memory) {
+        uint256 l = arr.length;
+        for (uint256 i = 0; i < l; i++) {
+            for (uint256 j = i + 1; j < l; j++) {
+                if (address(arr[i]) > address(arr[j])) {
+                    address temp = arr[i];
+                    arr[i] = arr[j];
+                    arr[j] = temp;
+                }
+            }
+        }
+        return arr;
     }
 }
