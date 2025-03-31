@@ -36,46 +36,26 @@ contract Deploy is EOADeployer {
     uint256 public constant yearlyPercentageEthStakers = 3;
 
 
-    function deployContracts() public {
-        // deploy ActionGenerator & Hopper
-        actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: address(Env.proxy.rewardsCoordinator()),
-            _firstSubmissionStartTimestamp: firstSubmissionStartTimestamp,
-            _firstSubmissionTriggerCutoff: firstSubmissionTriggerCutoff,
-            _amounts: amounts,
-            _strategiesAndMultipliers: strategiesAndMultipliers,
-            _bEIGEN: Env.proxy.beigen(),
-            _EIGEN: Env.proxy.eigen()
-        });
+    function _runAsEOA() internal override {
+        constructArrays();
+        deployContracts();
 
-        // fetch config from previous deployment, but replace the action generator and mark as non-expiring
-        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
-            token: address(Env.proxy.eigen()),
-            startTime: firstSubmissionStartTimestamp,
-            cooldownSeconds: 1 weeks,
-            actionGenerator: address(actionGenerator),
-            doesExpire: false,
-            expirationTimestamp: type(uint256).max
-        });
-        tokenHopper = new TokenHopper({
-            config: hopperConfiguration,
-            // ownership transferred to zero address because no rights are conferred to owner (since hopper is non-expiring)
-            initialOwner: address(0)
-        });
+        // // give tokenHopper bEIGEN minting permission
+        // vm.startPrank(Ownable(address(Env.proxy.beigen())).owner());
+        // Env.proxy.beigen().setIsMinter(address(tokenHopper), true);
+        // vm.stopPrank();
 
-        // give tokenHopper bEIGEN minting permission
-        vm.startPrank(Ownable(address(Env.proxy.beigen())).owner());
-        Env.proxy.beigen().setIsMinter(address(tokenHopper), true);
-        vm.stopPrank();
-
-        // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
-        vm.startPrank(Ownable(address(Env.proxy.rewardsCoordinator())).owner());
-        Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(address(tokenHopper), true);
-        vm.stopPrank();
+        // // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
+        // vm.startPrank(Ownable(address(Env.proxy.rewardsCoordinator())).owner());
+        // Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(address(tokenHopper), true);
+        // vm.stopPrank();
     }
 
-    function _runAsEOA() internal override {
+    function testDeploy() public virtual {
+        _runAsEOA();
+    }
 
+    function constructArrays() internal {
         // set up strategy arrays and amounts array
         amounts[0] = EIGEN_stakers_weekly_distribution;
         amounts[1] = ETH_stakers_weekly_distribution;
@@ -118,16 +98,42 @@ contract Deploy is EOADeployer {
                 multiplier: 1e18
             }));
         }
+    }
 
-
-
-
-
-
-
+    function deployContracts() internal {
+        require(strategiesAndMultipliers[0].length != 0, "arrays not constructed properly");
+        require(strategiesAndMultipliers[1].length != 0, "arrays not constructed properly");
 
         vm.startBroadcast();
 
+        // deploy ActionGenerator & Hopper
+        actionGenerator = new RewardAllStakersActionGenerator({
+            _rewardsCoordinator: address(Env.proxy.rewardsCoordinator()),
+            _firstSubmissionStartTimestamp: firstSubmissionStartTimestamp,
+            _firstSubmissionTriggerCutoff: firstSubmissionTriggerCutoff,
+            _amounts: amounts,
+            _strategiesAndMultipliers: strategiesAndMultipliers,
+            _bEIGEN: Env.proxy.beigen(),
+            _EIGEN: Env.proxy.eigen()
+        });
+
+        // fetch config from previous deployment, but replace the action generator and mark as non-expiring
+        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
+            token: address(Env.proxy.eigen()),
+            startTime: firstSubmissionStartTimestamp,
+            cooldownSeconds: 1 weeks,
+            actionGenerator: address(actionGenerator),
+            doesExpire: false,
+            expirationTimestamp: type(uint256).max
+        });
+        tokenHopper = new TokenHopper({
+            config: hopperConfiguration,
+            // ownership transferred to zero address because no rights are conferred to owner (since hopper is non-expiring)
+            initialOwner: address(0)
+        });
+
+        zUpdate('actionGenerator', address(actionGenerator));
+        zUpdate('tokenHopper', address(tokenHopper));
 
         vm.stopBroadcast();
     }
@@ -154,11 +160,6 @@ contract Deploy is EOADeployer {
         }
 
         return array;
-    }
-
-    function testDeploy() public virtual {
-        _runAsEOA();
-        // checkGovernanceConfiguration();
     }
 
 }
