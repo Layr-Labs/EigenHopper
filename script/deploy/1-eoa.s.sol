@@ -2,9 +2,11 @@
 pragma solidity ^0.8.12;
 
 import {EOADeployer} from "eigenlayer-contracts/lib/zeus-templates/src/templates/EOADeployer.sol";
-import "eigenlayer-contracts/script/releases/Env.sol";
+import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
 import "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";  
+import "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 
+import "@openzeppelin/contracts/access/Ownable.sol";
 import {ITokenHopper} from "src/interfaces/ITokenHopper.sol";
 import {TokenHopper} from "src/TokenHopper.sol";
 import {RewardAllStakersActionGenerator} from "src/RewardAllStakersActionGenerator.sol";
@@ -35,8 +37,6 @@ contract Deploy is EOADeployer {
 
 
     function deployContracts() public {
-        // copy strategies and multipliers from storage (deals with weird type errors -- possible TODO to fix)
-        // IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] memory _strategiesAndMultipliers;
         // deploy ActionGenerator & Hopper
         actionGenerator = new RewardAllStakersActionGenerator({
             _rewardsCoordinator: address(Env.proxy.rewardsCoordinator()),
@@ -92,13 +92,13 @@ contract Deploy is EOADeployer {
 
 
         strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
-            strategy: Env.proxy.eigenStrategy(),
+            strategy: IStrategy(address(Env.proxy.eigenStrategy())),
             multiplier: 1e18
         }));
 
         // uint256 deployedStrategyCount = Env.strategyBaseTVLLimits_Count("StrategyBaseTVLLimits");
         uint256 deployedStrategyCount = Env.instance.strategyBaseTVLLimits_Count();
-        uint256[] memory deployedStrategyArray = uint256[](deployedStrategyCount + 1);
+        uint256[] memory deployedStrategyArray = new uint256[](deployedStrategyCount + 1);
 
         // fetch all the strategies
         for (uint256 i = 0; i < deployedStrategyCount; ++i) {
@@ -108,11 +108,11 @@ contract Deploy is EOADeployer {
         deployedStrategyArray[deployedStrategyCount] = uint256(uint160(address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0)));
 
         // sort array
-        deployedStrategyArray = vm.sort(deployedStrategyArray);
+        deployedStrategyArray = sort(deployedStrategyArray);
 
         // write sorted array and multipliers
         for (uint256 i = 0; i < deployedStrategyCount; ++i) {
-            strategiesAndMultipliers[1][i].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
+            strategiesAndMultipliers[1].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
                 strategy: IStrategy(address(uint160(deployedStrategyArray[i]))),
                 // TODO: note that this is hard-coded -- should probably look values up somehow
                 multiplier: 1e18
@@ -130,6 +130,30 @@ contract Deploy is EOADeployer {
 
 
         vm.stopBroadcast();
+    }
+
+    function sort(uint256[] memory array) internal pure returns (uint256[] memory) {
+        if (array.length <= 1) return array;
+
+        for (uint i = 1; i < array.length; i++) {
+            uint256 key = array[i];
+            uint j = i - 1;
+
+            while (j > 0 && uint(array[j]) > uint(key)) {
+                array[j + 1] = array[j];
+                j--;
+            }
+
+            // Special case for the first element
+            if (j == 0 && uint(array[j]) > uint(key)) {
+                array[j + 1] = array[j];
+                array[j] = key;
+            } else if (j < i - 1) {
+                array[j + 1] = key;
+            }
+        }
+
+        return array;
     }
 
     function testDeploy() public virtual {
