@@ -26,7 +26,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
     // Action Generator config
     uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
     uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 5 weeks;
-    IRewardsCoordinator.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
+    IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
     uint256[2] public amounts;
     RewardsCoordinatorMock public rewardsCoordinatorMock;
     IERC20 public _bEIGEN;
@@ -43,7 +43,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
         rewardsCoordinatorMock = RewardsCoordinatorMock(address(0));
         cheats.expectRevert("RewardAllStakersActionGenerator: rewardsCoordinator cannot be zero address");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
@@ -56,7 +56,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
         _bEIGEN = IERC20(address(0));
         cheats.expectRevert("RewardAllStakersActionGenerator: bEIGEN cannot be zero address");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
@@ -69,7 +69,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
         _EIGEN = IERC20(address(0));
         cheats.expectRevert("RewardAllStakersActionGenerator: EIGEN cannot be zero address");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
@@ -84,7 +84,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
         _firstSubmissionStartTimestamp = 1;
         cheats.expectRevert("RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
@@ -97,7 +97,7 @@ contract RewardAllStakersActionGeneratorTests is Test {
     function test_deployRevertsWithEmptyStrategies() public {
         cheats.expectRevert("RewardAllStakersActionGenerator: empty strategies array not allowed");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
@@ -108,18 +108,18 @@ contract RewardAllStakersActionGeneratorTests is Test {
     }
 
     function test_deployRevertsWithUnorderedStrategies() public {
-        strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
+        strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
             strategy: IStrategy(address(_EIGEN)),
             multiplier: 1e18
         }));
-        strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
+        strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
             strategy: IStrategy(address(_EIGEN)),
             multiplier: 1e18
         }));
 
         cheats.expectRevert("RewardAllStakersActionGenerator: strategies must be in ascending order for submission");
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: IRewardsCoordinator(address(rewardsCoordinatorMock)),
+            _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: amounts,
