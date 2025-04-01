@@ -1,0 +1,23 @@
+{
+    "name": "TODO",
+    "from": "NA",
+    "to": "NA",
+    "phases": [
+        {
+            "type": "eoa",
+            "filename": "1-eoa.s.sol"
+        },
+        {
+            "type": "multisig",
+            "filename": "2-queueGrantMintingRights.s.sol"
+        },
+        {
+            "type": "multisig",
+            "filename": "3-setRewardsPermission.s.sol"
+        },
+        {
+            "type": "multisig",
+            "filename": "4-executeGrantMintingRights.s.sol"
+        }
+    ]
+}
