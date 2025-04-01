@@ -37,8 +37,17 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
 
     function testScript() public virtual override {
         _runAsEOA();
+
         QueueGrantMintingRights._runAsMultisig();
+        // reset hasPranked so we can use it again
+        _unsafeResetHasPranked();
+
         SetRewardsPermission._runAsMultisig();
+        // reset hasPranked so we can use it again
+        _unsafeResetHasPranked();
+
+        // move forward in time so we can execute the action
+        vm.warp(block.timestamp + Env.timelockController().getMinDelay());
         _runAsMultisig();
 
         // Validate that the token hopper has mintingRights
