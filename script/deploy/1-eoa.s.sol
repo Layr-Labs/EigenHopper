@@ -39,16 +39,6 @@ contract Deploy is EOADeployer {
     function _runAsEOA() internal override {
         constructArrays();
         deployContracts();
-
-        // // give tokenHopper bEIGEN minting permission
-        // vm.startPrank(Ownable(address(Env.proxy.beigen())).owner());
-        // Env.proxy.beigen().setIsMinter(address(tokenHopper), true);
-        // vm.stopPrank();
-
-        // // give tokenHopper `isRewardsForAllSubmitter` status on RewardsCoordinator
-        // vm.startPrank(Ownable(address(Env.proxy.rewardsCoordinator())).owner());
-        // Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(address(tokenHopper), true);
-        // vm.stopPrank();
     }
 
     function testDeploy() public virtual {

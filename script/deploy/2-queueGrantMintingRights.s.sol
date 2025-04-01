@@ -43,12 +43,6 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
                 // data: abi.encodeWithSignature("setIsMinter(address,bool)", Env.tokenHopper(), true)
                 data: abi.encodeWithSignature("setIsMinter(address,bool)", ZEnvHelpers.state().envAddress("tokenHopper"), true)
             });
-
-        // Set the timestamp submitter to the ops multisig
-        // executorCalls.append({
-        //     to: address(Env.proxy.eigenPodManager()),
-        //     data: abi.encodeCall(EigenPodManager.setProofTimestampSetter, (address(Env.opsMultisig())))
-        // });
             
         return
             Encode.gnosisSafe.execTransaction({
@@ -60,7 +54,7 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
     }
 
     function testScript() public virtual {
-        runAsEOA();
+        _runAsEOA();
 
         TimelockController timelock = Env.timelockController();
         bytes memory calldata_to_executor = _getCalldataToExecutor_queueChanges();
@@ -72,15 +66,15 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
             salt: 0
         });
 
-        // Check that the upgrade does not exist in the timelock
+        // Check that the change does not exist in the timelock
         assertFalse(
             timelock.isOperationPending(txHash),
             "Transaction should NOT be queued."
         );
 
-        execute();
+        _runAsMultisig();
 
-        // Check that the upgrade has been added to the timelock
+        // Check that the change has been added to the timelock
         assertTrue(
             timelock.isOperationPending(txHash),
             "Transaction should be queued."

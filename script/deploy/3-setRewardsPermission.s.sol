@@ -19,24 +19,12 @@ contract SetRewardsPermission is QueueGrantMintingRights {
         Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(ZEnvHelpers.state().envAddress("tokenHopper"), true);
     }
 
-    // function testScript() public virtual override {
-    //     // 1-4 are completed in _completeSteps1_4()
-    //     _completeSteps1_4();
+    function testScript() public virtual override {
+        _runAsMultisig();
 
-    //     // Warp past delay
-    //     TimelockController timelock = Env.timelockController();
-    //     vm.warp(block.timestamp + timelock.getMinDelay()); // 1 tick after ETA
-
-    //     // 5. Execute Upgrade and Set Timestamp Submitter
-    //     ExecuteUpgradeAndSetTimestampSubmitter._runAsMultisig();
-    //     _unsafeResetHasPranked();
-
-    //     // 6. Set the proof timestamp
-    //     // This test uses the actual pectra fork timestamp, hence why `forkTimestamp.txt` already has a set timestamp
-    //     execute();   
-
-    //     // Validate that the proof timestamp is set
-    //     assertEq(Env.proxy.eigenPodManager().pectraForkTimestamp(), proofTimestamp, "Proof timestamp is not set");
-    // }
+        // Validate that the token hopper has the permission
+        assertEq(Env.proxy.rewardsCoordinator().isRewardsForAllSubmitter(ZEnvHelpers.state().envAddress("tokenHopper")), true,
+            "token hopper does not have requisite permission on rewardsCoordinator");
+    }
 
 }

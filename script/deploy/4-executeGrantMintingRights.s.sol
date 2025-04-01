@@ -35,64 +35,18 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         });
     }
 
-    // function testScript() public virtual override(QueueUnpause, Pause) {
-    //     // 1-4 are completed in _completeSteps1_4()
-    //     _completeSteps1_4();
+    function testScript() public virtual override {
+        _runAsEOA();
+        QueueGrantMintingRights._runAsMultisig();
+        SetRewardsPermission._runAsMultisig();
+        _runAsMultisig();
 
-    //     // Warp past delay
-    //     TimelockController timelock = Env.timelockController();
-    //     vm.warp(block.timestamp + timelock.getMinDelay()); // 1 tick after ETA
-    //     assertEq(timelock.isOperationReady(QueueUpgradeAndTimestampSetter.getTimelockId()), true, "Transaction should be executable.");
+        // Validate that the token hopper has mintingRights
+        (bool success, bytes memory returndata) = address(Env.proxy.beigen()).staticcall(
+            abi.encodeWithSignature("isMinter(address)", ZEnvHelpers.state().envAddress("tokenHopper")));
+        require(success, "call failed");
+        bool retVal = abi.decode(returndata, (bool));
+        require(retVal, "token hopper does not have minting permission");
+    }
 
-    //     // 5. Execute
-    //     execute();
-    //     assertTrue(timelock.isOperationDone(QueueUpgradeAndTimestampSetter.getTimelockId()), "Transaction should be complete.");
-
-    //     // Validate that the operations multisig is the timestamp submitter
-    //     assertEq(Env.proxy.eigenPodManager().proofTimestampSetter(), Env.opsMultisig(), "Timestamp submitter is not the operations multisig");
-
-    //     // Check that the unpause is not complete
-    //     assertTrue(Env.proxy.eigenPodManager().paused(PAUSED_START_CHECKPOINT), "Not paused!");
-    //     assertTrue(Env.proxy.eigenPodManager().paused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS), "Not paused!");
-    //     assertFalse(timelock.isOperationDone(QueueUnpause.getTimelockId()), "Transaction should NOT be complete.");
-
-    //     // Validations
-    //     _validateNewImplAddresses(true);
-    //     _validateProxyAdmins();
-    //     _validateProxyConstructors();
-    //     _validateProxiesInitialized();
-    // }
-
-    // function _completeSteps1_4() internal {
-    //      // 0. Get Queue Transactions
-    //     TimelockController timelock = Env.timelockController();
-    //     assertFalse(timelock.isOperationPending(QueueUpgradeAndTimestampSetter.getTimelockId()), "Transaction should not be queued.");
-    //     assertFalse(timelock.isOperationReady(QueueUnpause.getTimelockId()), "Transaction should not be ready for execution.");
-
-    //     // 1. Deploy Impls
-    //     runAsEOA();
-
-    //     // 2. Queue Upgrade and Set Timestamp Submitter
-    //     QueueUpgradeAndTimestampSetter._runAsMultisig();
-    //     _unsafeResetHasPranked(); // reset hasPranked so we can use it again
-
-    //     assertTrue(timelock.isOperationPending(QueueUpgradeAndTimestampSetter.getTimelockId()), "Transaction should be queued.");
-    //     assertFalse(timelock.isOperationReady(QueueUpgradeAndTimestampSetter.getTimelockId()), "Transaction should NOT be ready for execution.");
-    //     assertFalse(timelock.isOperationDone(QueueUpgradeAndTimestampSetter.getTimelockId()), "Transaction should NOT be complete.");
-
-    //     // 3. Queue Unpause
-    //     QueueUnpause._runAsMultisig();
-    //     _unsafeResetHasPranked(); // reset hasPranked so we can use it again
-
-    //     assertTrue(timelock.isOperationPending(QueueUnpause.getTimelockId()), "Transaction should be queued.");
-    //     assertFalse(timelock.isOperationReady(QueueUnpause.getTimelockId()), "Transaction should NOT be ready for execution.");
-    //     assertFalse(timelock.isOperationDone(QueueUnpause.getTimelockId()), "Transaction should NOT be complete.");
-
-    //     // 4. Run Pausing Logic
-    //     Pause._runAsMultisig();
-    //     _unsafeResetHasPranked(); // reset hasPranked so we can use it again
-
-    //     assertTrue(Env.proxy.eigenPodManager().paused(PAUSED_START_CHECKPOINT), "Not paused!");
-    //     assertTrue(Env.proxy.eigenPodManager().paused(PAUSED_EIGENPODS_VERIFY_CREDENTIALS), "Not paused!");
-    // }
 }
