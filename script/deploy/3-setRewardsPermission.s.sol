@@ -20,6 +20,7 @@ contract SetRewardsPermission is QueueGrantMintingRights {
     }
 
     function testScript() public virtual override {
+        _runAsEOA();
         _runAsMultisig();
 
         // Validate that the token hopper has the permission
