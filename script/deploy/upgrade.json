@@ -1,7 +1,7 @@
 {
-    "name": "TODO",
-    "from": "NA",
-    "to": "NA",
+    "name": "TokenHopperDeploy",
+    "from": "1.4.0",
+    "to": "1.4.0",
     "phases": [
         {
             "type": "eoa",
