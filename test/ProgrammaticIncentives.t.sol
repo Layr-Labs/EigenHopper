@@ -1,487 +1,486 @@
-// // SPDX-License-Identifier: UNLICENSED
-// pragma solidity ^0.8.12;
+// SPDX-License-Identifier: UNLICENSED
+pragma solidity ^0.8.12;
 
-// import "forge-std/Test.sol";
+import "forge-std/Test.sol";
 
-// import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-// import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-// import "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-// import "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
-// import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
+import "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
+import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
 
-// import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
+import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 
-// import {DelegationManagerMock} from "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
-// import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
-// import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
+import {DelegationManagerMock} from "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
+import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
+import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
 
-// import "src/TokenHopper.sol";
-// import "src/RewardAllStakersActionGenerator.sol";
+import "src/TokenHopper.sol";
+import "src/RewardAllStakersActionGenerator.sol";
 
-// import "./BytecodeConstants.sol";
+import "./BytecodeConstants.sol";
 
-// interface IMinting {
-//     function isMinter(address) external view returns (bool);
-// }
+interface IMinting {
+    function isMinter(address) external view returns (bool);
+}
 
-// contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
-//     Vm cheats = Vm(VM_ADDRESS);
+contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
+    Vm cheats = Vm(VM_ADDRESS);
 
-//     event RewardsSubmissionForAllEarnersCreated(
-//         address indexed submitter,
-//         uint256 indexed submissionNonce,
-//         bytes32 indexed rewardsSubmissionHash,
-//         IRewardsCoordinator.RewardsSubmission rewardsSubmission
-//     );
-//     event Transfer(address indexed from, address indexed to, uint256 value);
-//     event Approval(address indexed owner, address indexed spender, uint256 value);
-//     event HopperLoaded(ITokenHopper.HopperConfiguration config);
-//     event ButtonPressed(address indexed caller, uint256 newCooldownHorizon);
-//     event FundsRetrieved(uint256 amount);
+    event RewardsSubmissionForAllEarnersCreated(
+        address indexed submitter,
+        uint256 indexed submissionNonce,
+        bytes32 indexed rewardsSubmissionHash,
+        IRewardsCoordinatorTypes.RewardsSubmission rewardsSubmission
+    );
+    event Transfer(address indexed from, address indexed to, uint256 value);
+    event Approval(address indexed owner, address indexed spender, uint256 value);
+    event HopperLoaded(ITokenHopper.HopperConfiguration config);
+    event ButtonPressed(address indexed caller, uint256 newCooldownHorizon);
+    event FundsRetrieved(uint256 amount);
 
-//     mapping(address => bool) public fuzzedOutAddresses;
+    mapping(address => bool) public fuzzedOutAddresses;
 
-//     address public initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
-//     address public minterToSet = address(500);
-//     address public mintTo = address(12345);
+    address public initialOwner = 0xbb00DDa2832850a43840A3A86515E3Fe226865F2;
+    address public minterToSet = address(500);
+    address public mintTo = address(12345);
 
-//     address public rewardsCoordinatorImplAddress = address(7777777);
-//     address public _rewardsUpdater = address(4444);
-//     IPauserRegistry public _pauserRegistry = IPauserRegistry(address(333));
+    address public rewardsCoordinatorImplAddress = address(7777777);
+    address public _rewardsUpdater = address(4444);
+    IPauserRegistry public _pauserRegistry = IPauserRegistry(address(333));
 
-//     // RewardsCoordinator config
-//     uint32 GENESIS_REWARDS_TIMESTAMP = 1710979200;
+    // RewardsCoordinator config
+    uint32 GENESIS_REWARDS_TIMESTAMP = 1710979200;
 
-//     // Action Generator config
-//     uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
-//     uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 5 weeks;
-//     uint256[2] public _amounts;
-//     IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
+    // Action Generator config
+    uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
+    uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 5 weeks;
+    uint256[2] public _amounts;
+    IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
-//     // EIGEN token config
-//     address[] public minters;
-//     uint256[] public mintingAllowances;
-//     uint256[] public mintAllowedAfters;
-//     uint256 public constant INITIAL_EIGEN_SUPPLY = 1673646668284660000000000000;
+    // EIGEN token config
+    address[] public minters;
+    uint256[] public mintingAllowances;
+    uint256[] public mintAllowedAfters;
+    uint256 public constant INITIAL_EIGEN_SUPPLY = 1673646668284660000000000000;
 
-//     ProxyAdmin public proxyAdmin;
+    ProxyAdmin public proxyAdmin;
 
-//     IEigen public eigenImpl;
-//     IEigen public eigen;
+    IEigen public eigenImpl;
+    IEigen public eigen;
 
-//     IBackingEigen public beigenImpl;
-//     IBackingEigen public beigen;
+    IBackingEigen public beigenImpl;
+    IBackingEigen public beigen;
 
-//     RewardsCoordinator public rewardsCoordinatorImpl;
-//     RewardsCoordinator public rewardsCoordinator;
+    RewardsCoordinator public rewardsCoordinatorImpl;
+    RewardsCoordinator public rewardsCoordinator;
 
-//     DelegationManagerMock public delegationManagerMock;
-//     StrategyManagerMock public strategyManagerMock;
+    DelegationManagerMock public delegationManagerMock;
+    StrategyManagerMock public strategyManagerMock;
 
-//     EmptyContract public emptyContract;
+    EmptyContract public emptyContract;
 
-//     TokenHopper public tokenHopper;
-//     RewardAllStakersActionGenerator public actionGenerator;
+    TokenHopper public tokenHopper;
+    RewardAllStakersActionGenerator public actionGenerator;
 
-//     // utility function for deploying a contract from its creation bytecode
-//     function deployContractFromBytecode(bytes memory bytecode) public returns (address) {
-//         address deployedContract;
-//         uint256 size = bytecode.length;
-//         uint256 location;
-//         assembly {
-//             // value, offset, size
-//             location := add(bytecode, 32)
-//         }
-//         assembly {
-//             /**
-//              * the create opcode takes args: value, offset, size
-//              * offset should start from the bytecode itself -- 'bytecode' refers to the location, and we skip the first
-//              * 32 bytes in the offset since these encode the length rather than the data itself
-//              */
-//             deployedContract := create(0, add(bytecode, 32), size)
-//         }
-//         return deployedContract;
-//     }
+    // utility function for deploying a contract from its creation bytecode
+    function deployContractFromBytecode(bytes memory bytecode) public returns (address) {
+        address deployedContract;
+        uint256 size = bytecode.length;
+        uint256 location;
+        assembly {
+            // value, offset, size
+            location := add(bytecode, 32)
+        }
+        assembly {
+            /**
+             * the create opcode takes args: value, offset, size
+             * offset should start from the bytecode itself -- 'bytecode' refers to the location, and we skip the first
+             * 32 bytes in the offset since these encode the length rather than the data itself
+             */
+            deployedContract := create(0, add(bytecode, 32), size)
+        }
+        return deployedContract;
+    }
 
-//     function setUp() public virtual {
-//         cheats.startPrank(initialOwner);
-//         proxyAdmin = new ProxyAdmin();
-//         emptyContract = new EmptyContract();
+    function setUp() public virtual {
+        cheats.startPrank(initialOwner);
+        proxyAdmin = new ProxyAdmin();
+        emptyContract = new EmptyContract();
 
-//         // deploy proxies
-//         eigen = IEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-//         beigen = IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-//         rewardsCoordinator = RewardsCoordinator(address(
-//             new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        // deploy proxies
+        eigen = IEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        beigen = IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        rewardsCoordinator = RewardsCoordinator(address(
+            new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
 
-//         // deploy mocks
-//         delegationManagerMock = new DelegationManagerMock();
-//         strategyManagerMock = new StrategyManagerMock(delegationManagerMock);
+        // deploy mocks
+        delegationManagerMock = new DelegationManagerMock();
+        strategyManagerMock = new StrategyManagerMock(IDelegationManager(address(delegationManagerMock)));
 
-//         // deploy implementations
-//         beigenImpl = IBackingEigen(deployContractFromBytecode(
-//             abi.encodePacked(beigenCreationBytecode, abi.encode(address(eigen)))
-//         ));
-//         eigenImpl = IEigen(deployContractFromBytecode(
-//             abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))
-//         ));
-//         // deployed using mainnet values -- see https://etherscan.io/address/0x7750d328b314effa365a0402ccfd489b80b0adda
-//         rewardsCoordinatorImpl = new RewardsCoordinator({
-//             _delegationManager: delegationManagerMock,
-//             _strategyManager: strategyManagerMock,
-//             _allocationManager: IAllocationManager(address(1)),
-//             _pauserRegistry: IPauserRegistry(address(1)),
-//             _permissionController: IPermissionController(address(1)),
-//             _CALCULATION_INTERVAL_SECONDS: 1 weeks,
-//             _MAX_REWARDS_DURATION: 10 weeks, 
-//             _MAX_RETROACTIVE_LENGTH: 24 weeks,
-//             _MAX_FUTURE_LENGTH: 30 days,
-//             __GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
-//         });
+        // deploy implementations
+        beigenImpl = IBackingEigen(deployContractFromBytecode(
+            abi.encodePacked(beigenCreationBytecode, abi.encode(address(eigen)))
+        ));
+        eigenImpl = IEigen(deployContractFromBytecode(
+            abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))
+        ));
+        // deployed using mainnet values -- see https://etherscan.io/address/0x7750d328b314effa365a0402ccfd489b80b0adda
+        rewardsCoordinatorImpl = new RewardsCoordinator({
+            _delegationManager: IDelegationManager(address(delegationManagerMock)),
+            _strategyManager: IStrategyManager(address(strategyManagerMock)),
+            _allocationManager: IAllocationManager(address(1)),
+            _pauserRegistry: IPauserRegistry(address(1)),
+            _permissionController: IPermissionController(address(1)),
+            _CALCULATION_INTERVAL_SECONDS: 1 weeks,
+            _MAX_REWARDS_DURATION: 10 weeks, 
+            _MAX_RETROACTIVE_LENGTH: 24 weeks,
+            _MAX_FUTURE_LENGTH: 30 days,
+            _GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
+        });
 
-//         // upgrade proxies
-//         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
-//         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-//         proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+        // upgrade proxies
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
-//         // deploy ActionGenerator & Hopper
-//         _amounts[0] = 100;
-//         _amounts[1] = 200;
-//         _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
-//             strategy: IStrategy(address(eigen)),
-//             multiplier: 1e18
-//         }));
-//         _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
-//             strategy: IStrategy(address(eigen)),
-//             multiplier: 1e18
-//         }));
-//         actionGenerator = new RewardAllStakersActionGenerator({
-//             _rewardsCoordinator: rewardsCoordinator,
-//             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
-//             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
-//             _amounts: _amounts,
-//             _strategiesAndMultipliers: _strategiesAndMultipliers,
-//             _bEIGEN: beigen,
-//             _EIGEN: eigen
-//         });
+        // deploy ActionGenerator & Hopper
+        _amounts[0] = 100;
+        _amounts[1] = 200;
+        _strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
+            strategy: IStrategy(address(eigen)),
+            multiplier: 1e18
+        }));
+        _strategiesAndMultipliers[1].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
+            strategy: IStrategy(address(eigen)),
+            multiplier: 1e18
+        }));
+        actionGenerator = new RewardAllStakersActionGenerator({
+            _rewardsCoordinator: address(rewardsCoordinator),
+            _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
+            _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
+            _amounts: _amounts,
+            _strategiesAndMultipliers: _strategiesAndMultipliers,
+            _bEIGEN: beigen,
+            _EIGEN: eigen
+        });
 
-//         ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
-//             token: address(eigen),
-//             startTime: _firstSubmissionStartTimestamp,
-//             cooldownSeconds: 1 weeks,
-//             actionGenerator: address(actionGenerator),
-//             doesExpire: true,
-//             expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks 
-//         });
-//         tokenHopper = new TokenHopper({
-//             config: hopperConfiguration,
-//             initialOwner: initialOwner
-//         });
-//         cheats.warp(_firstSubmissionStartTimestamp + 1 weeks);
+        ITokenHopper.HopperConfiguration memory hopperConfiguration = ITokenHopper.HopperConfiguration({
+            token: address(eigen),
+            startTime: _firstSubmissionStartTimestamp,
+            cooldownSeconds: 1 weeks,
+            actionGenerator: address(actionGenerator),
+            doesExpire: true,
+            expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks 
+        });
+        tokenHopper = new TokenHopper({
+            config: hopperConfiguration,
+            initialOwner: initialOwner
+        });
+        cheats.warp(_firstSubmissionStartTimestamp + 1 weeks);
 
-//         // initialize contracts
-//         // initialize eigen
-//         minters.push(initialOwner);
-//         mintingAllowances.push(INITIAL_EIGEN_SUPPLY);
-//         mintAllowedAfters.push(0);
-//         (bool success, /*bytes returndata*/) = address(eigen).call(abi.encodeWithSignature(
-//             "initialize(address,address[],uint256[],uint256[])",
-//             initialOwner,
-//             minters,
-//             mintingAllowances,
-//             mintAllowedAfters
-//         ));
-//         require(success, "eigen initialization failed");
-//         eigen.mint();
-//         eigen.disableTransferRestrictions();
+        // initialize contracts
+        // initialize eigen
+        minters.push(initialOwner);
+        mintingAllowances.push(INITIAL_EIGEN_SUPPLY);
+        mintAllowedAfters.push(0);
+        (bool success, /*bytes returndata*/) = address(eigen).call(abi.encodeWithSignature(
+            "initialize(address,address[],uint256[],uint256[])",
+            initialOwner,
+            minters,
+            mintingAllowances,
+            mintAllowedAfters
+        ));
+        require(success, "eigen initialization failed");
+        eigen.mint();
+        eigen.disableTransferRestrictions();
 
-//         // initialize beigen
-//         (success, /*bytes returndata*/) = address(beigen).call(abi.encodeWithSignature("initialize(address)", initialOwner));
-//         require(success, "beigen initialization failed");
-//         beigen.disableTransferRestrictions();
-//         beigen.setIsMinter(address(tokenHopper), true);
+        // initialize beigen
+        (success, /*bytes returndata*/) = address(beigen).call(abi.encodeWithSignature("initialize(address)", initialOwner));
+        require(success, "beigen initialization failed");
+        beigen.disableTransferRestrictions();
+        beigen.setIsMinter(address(tokenHopper), true);
 
-//         cheats.stopPrank();
+        cheats.stopPrank();
 
-//         // initialize RewardsCoordinator
-//         rewardsCoordinator.initialize({
-//             initialOwner: initialOwner,
-//             _pauserRegistry: _pauserRegistry,
-//             initialPausedStatus: 0,
-//             _rewardsUpdater: _rewardsUpdater,
-//             _activationDelay: 1 weeks,
-//             _globalCommissionBips: 1000
-//         });
-//         cheats.prank(Ownable(address(rewardsCoordinator)).owner());
-//         rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
+        // initialize RewardsCoordinator
+        rewardsCoordinator.initialize({
+            initialOwner: initialOwner,
+            initialPausedStatus: 0,
+            _rewardsUpdater: _rewardsUpdater,
+            _activationDelay: 1 weeks,
+            _defaultSplitBips: 1000
+        });
+        cheats.prank(Ownable(address(rewardsCoordinator)).owner());
+        rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
 
-//         // initialize mocks
-//         strategyManagerMock.setStrategyWhitelist(IStrategy(address(eigen)), true);
-//     }
+        // initialize mocks
+        strategyManagerMock.setStrategyWhitelist(IStrategy(address(eigen)), true);
+    }
 
-//     function test_pressButton() public {
-//         uint256 rewardsCoordinatorEigenBalanceBefore = eigen.balanceOf(address(rewardsCoordinator));
-//         uint256 eigenTotalSupplyBefore = eigen.totalSupply();
-//         uint256 beigenTotalSupplyBefore = beigen.totalSupply();
+    function test_pressButton() public {
+        uint256 rewardsCoordinatorEigenBalanceBefore = eigen.balanceOf(address(rewardsCoordinator));
+        uint256 eigenTotalSupplyBefore = eigen.totalSupply();
+        uint256 beigenTotalSupplyBefore = beigen.totalSupply();
 
-//         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-//         uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
-//         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
-//         {
-//             IHopperActionGenerator.HopperAction[] memory actions =
-//                 actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
-//             bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-//             rewardsSubmissions = abi.decode(
-//                 rewardsSubmissionsRaw,
-//                 (IRewardsCoordinator.RewardsSubmission[])
-//             );
-//         }
-//         uint256 totalAmount;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             totalAmount += rewardsSubmissions[i].amount;
-//         }
-//         // event for minting
-//         cheats.expectEmit(true, true, true, true, address(beigen));
-//         emit Transfer(address(0), address(tokenHopper), totalAmount);
-//         // event for approving to wrap
-//         cheats.expectEmit(true, true, true, true, address(beigen));
-//         emit Approval(address(tokenHopper), address(eigen), totalAmount);
-//         // events from wrapping
-//         // spending approval
-//         cheats.expectEmit(true, true, true, true, address(beigen));
-//         emit Approval(address(tokenHopper), address(eigen), 0);
-//         // transferring in beigen
-//         cheats.expectEmit(true, true, true, true, address(beigen));
-//         emit Transfer(address(tokenHopper), address(eigen), totalAmount);
-//         // minting new eigen to hopper as last step of wrapping
-//         cheats.expectEmit(true, true, true, true, address(eigen));
-//         emit Transfer(address(0), address(tokenHopper), totalAmount);
-//         // event for approving RewardsCoordinator to transfer
-//         cheats.expectEmit(true, true, true, true, address(eigen));
-//         emit Approval(address(tokenHopper), address(rewardsCoordinator), totalAmount);
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
+        {
+            IHopperActionGenerator.HopperAction[] memory actions =
+                actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+            bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+            rewardsSubmissions = abi.decode(
+                rewardsSubmissionsRaw,
+                (IRewardsCoordinatorTypes.RewardsSubmission[])
+            );
+        }
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        // event for minting
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Transfer(address(0), address(tokenHopper), totalAmount);
+        // event for approving to wrap
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Approval(address(tokenHopper), address(eigen), totalAmount);
+        // events from wrapping
+        // spending approval
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Approval(address(tokenHopper), address(eigen), 0);
+        // transferring in beigen
+        cheats.expectEmit(true, true, true, true, address(beigen));
+        emit Transfer(address(tokenHopper), address(eigen), totalAmount);
+        // minting new eigen to hopper as last step of wrapping
+        cheats.expectEmit(true, true, true, true, address(eigen));
+        emit Transfer(address(0), address(tokenHopper), totalAmount);
+        // event for approving RewardsCoordinator to transfer
+        cheats.expectEmit(true, true, true, true, address(eigen));
+        emit Approval(address(tokenHopper), address(rewardsCoordinator), totalAmount);
 
-//         // events for RewardsCoordinator performing the transfers
-//         uint256 remainingAllowance = totalAmount;
-//         for (uint256 i = 0; i < 1; ++i) {
-//             IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
+        // events for RewardsCoordinator performing the transfers
+        uint256 remainingAllowance = totalAmount;
+        for (uint256 i = 0; i < 1; ++i) {
+            IRewardsCoordinatorTypes.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
 
-//             bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
-//             cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
-//             emit RewardsSubmissionForAllEarnersCreated({
-//                 submitter: address(tokenHopper),
-//                 submissionNonce: currentNonce,
-//                 rewardsSubmissionHash: rewardsSubmissionHash,
-//                 rewardsSubmission: rewardsSubmission
-//             });
-//             // spending approval
-//             cheats.expectEmit(true, true, true, true, address(eigen));
-//             remainingAllowance -= rewardsSubmission.amount;
-//             emit Approval(address(tokenHopper), address(rewardsCoordinator), remainingAllowance);
-//             // transferring into RewardsCoordinator
-//             cheats.expectEmit(true, true, true, true, address(eigen));
-//             emit Transfer(address(tokenHopper), address(rewardsCoordinator), rewardsSubmission.amount);
-//            currentNonce++;
-//         }
+            bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
+            cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
+            emit RewardsSubmissionForAllEarnersCreated({
+                submitter: address(tokenHopper),
+                submissionNonce: currentNonce,
+                rewardsSubmissionHash: rewardsSubmissionHash,
+                rewardsSubmission: rewardsSubmission
+            });
+            // spending approval
+            cheats.expectEmit(true, true, true, true, address(eigen));
+            remainingAllowance -= rewardsSubmission.amount;
+            emit Approval(address(tokenHopper), address(rewardsCoordinator), remainingAllowance);
+            // transferring into RewardsCoordinator
+            cheats.expectEmit(true, true, true, true, address(eigen));
+            emit Transfer(address(tokenHopper), address(rewardsCoordinator), rewardsSubmission.amount);
+           currentNonce++;
+        }
 
-//         // event for pressing button
-//         cheats.expectEmit(true, true, true, true, address(tokenHopper));
-//         uint256 newCooldownHorizon =
-//             ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
-//             + configuration.startTime;
-//         emit ButtonPressed(address(this), newCooldownHorizon);
+        // event for pressing button
+        cheats.expectEmit(true, true, true, true, address(tokenHopper));
+        uint256 newCooldownHorizon =
+            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
+            + configuration.startTime;
+        emit ButtonPressed(address(this), newCooldownHorizon);
 
-//         tokenHopper.pressButton();
+        tokenHopper.pressButton();
 
-//         uint256 rewardsCoordinatorEigenBalanceAfter = eigen.balanceOf(address(rewardsCoordinator));
-//         uint256 eigenTotalSupplyAfter = eigen.totalSupply();
-//         uint256 beigenTotalSupplyAfter = beigen.totalSupply();
+        uint256 rewardsCoordinatorEigenBalanceAfter = eigen.balanceOf(address(rewardsCoordinator));
+        uint256 eigenTotalSupplyAfter = eigen.totalSupply();
+        uint256 beigenTotalSupplyAfter = beigen.totalSupply();
 
-//         assertEq(rewardsCoordinatorEigenBalanceAfter, rewardsCoordinatorEigenBalanceBefore + totalAmount,
-//             "rewardsCoordinator did not receive expected amount of EIGEN tokens");
-//         assertEq(eigenTotalSupplyAfter, eigenTotalSupplyBefore + totalAmount,
-//             "EIGEN totalSupply did not increase as expected");
-//         assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount,
-//             "bEIGEN totalSupply did not increase as expected");
-//         require(!tokenHopper.canPress(), "should not be able to immediately press button again");
-//         assertEq(tokenHopper.latestPress(), block.timestamp,
-//             "latestPress not set correctly");
-//     }
+        assertEq(rewardsCoordinatorEigenBalanceAfter, rewardsCoordinatorEigenBalanceBefore + totalAmount,
+            "rewardsCoordinator did not receive expected amount of EIGEN tokens");
+        assertEq(eigenTotalSupplyAfter, eigenTotalSupplyBefore + totalAmount,
+            "EIGEN totalSupply did not increase as expected");
+        assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount,
+            "bEIGEN totalSupply did not increase as expected");
+        require(!tokenHopper.canPress(), "should not be able to immediately press button again");
+        assertEq(tokenHopper.latestPress(), block.timestamp,
+            "latestPress not set correctly");
+    }
 
-//     function test_pressButton_MultipleCycles() public {
-//         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 3 days);
-//         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
-//         IHopperActionGenerator.HopperAction[] memory actions =
-//             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
-//         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-//         rewardsSubmissions = abi.decode(
-//             rewardsSubmissionsRaw,
-//             (IRewardsCoordinator.RewardsSubmission[])
-//         );
-//         uint256 totalAmount;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             totalAmount += rewardsSubmissions[i].amount;
-//         }
-//         uint256 expectedTotalAmount;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             expectedTotalAmount += _amounts[i];
-//         }
-//         // multiplier for number of weeks for first distribution
-//         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-//         uint256 multiplier;
-//         if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
-//             multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
-//         } else {
-//             multiplier = 1;
-//         }
-//         require(multiplier != 0, "test setup is bad");
-//         expectedTotalAmount = expectedTotalAmount * multiplier;
+    function test_pressButton_MultipleCycles() public {
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 3 days);
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory actions =
+            actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
+        );
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        uint256 expectedTotalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        // multiplier for number of weeks for first distribution
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        uint256 multiplier;
+        if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
+            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+        } else {
+            multiplier = 1;
+        }
+        require(multiplier != 0, "test setup is bad");
+        expectedTotalAmount = expectedTotalAmount * multiplier;
 
-//         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
-//                 "amount in rewardsSubmission is not multiplied correctly");
-//         }
-//         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-//         require(endOfFirstSubmission > block.timestamp,
-//             "endOfFirstSubmission should be after the present time");
-//         require(endOfFirstSubmission <= block.timestamp + 1 weeks,
-//             "endOfFirstSubmission should be at or before one week in future");
-//         require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
-//             "array entries have different ends");
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly");
+        }
+        uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
+        require(endOfFirstSubmission > block.timestamp,
+            "endOfFirstSubmission should be after the present time");
+        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future");
+        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends");
 
-//         // test first press
-//         test_pressButton();
+        // test first press
+        test_pressButton();
 
-//         // move time forward by 7 days
-//         cheats.warp(block.timestamp + 7 days);
-//         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
-//         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-//         rewardsSubmissions = abi.decode(
-//             rewardsSubmissionsRaw,
-//             (IRewardsCoordinator.RewardsSubmission[])
-//         );
+        // move time forward by 7 days
+        cheats.warp(block.timestamp + 7 days);
+        actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
+        );
 
-//         totalAmount = 0;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             totalAmount += rewardsSubmissions[i].amount;
-//         }
-//         expectedTotalAmount = 0;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             expectedTotalAmount += _amounts[i];
-//         }
-//         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
-//         }
+        totalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        expectedTotalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
+        }
 
-//         assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
-//             "end of first submission and start of second should align");
-//         assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
-//             "array entries have different starts");
-//         assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
-//             "array entries have different durations");
+        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align");
+        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts");
+        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
+            "array entries have different durations");
 
-//         // test second press
-//         test_pressButton();
-//     }
+        // test second press
+        test_pressButton();
+    }
 
-//     function test_pressButton_MultipleCycles_EdgeTiming() public {
-//         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 1);
-//         IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
-//         IHopperActionGenerator.HopperAction[] memory actions =
-//             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
-//         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-//         rewardsSubmissions = abi.decode(
-//             rewardsSubmissionsRaw,
-//             (IRewardsCoordinator.RewardsSubmission[])
-//         );
-//         uint256 totalAmount;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             totalAmount += rewardsSubmissions[i].amount;
-//         }
-//         uint256 expectedTotalAmount;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             expectedTotalAmount += _amounts[i];
-//         }
-//         // multiplier for number of weeks for first distribution
-//         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
-//         uint256 multiplier;
-//         if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
-//             multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
-//         } else {
-//             multiplier = 1;
-//         }
-//         // emit log_named_uint("multiplier", multiplier);
-//         require(multiplier != 0, "test setup is bad");
-//         expectedTotalAmount = expectedTotalAmount * multiplier;
+    function test_pressButton_MultipleCycles_EdgeTiming() public {
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 1);
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
+        IHopperActionGenerator.HopperAction[] memory actions =
+            actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
+        );
+        uint256 totalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        uint256 expectedTotalAmount;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        // multiplier for number of weeks for first distribution
+        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        uint256 multiplier;
+        if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
+            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+        } else {
+            multiplier = 1;
+        }
+        // emit log_named_uint("multiplier", multiplier);
+        require(multiplier != 0, "test setup is bad");
+        expectedTotalAmount = expectedTotalAmount * multiplier;
 
-//         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
-//                 "amount in rewardsSubmission is not multiplied correctly");
-//         }
-//         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-//         require(endOfFirstSubmission > block.timestamp,
-//             "endOfFirstSubmission should be after the present time");
-//         require(endOfFirstSubmission <= block.timestamp + 1 weeks,
-//             "endOfFirstSubmission should be at or before one week in future");
-//         require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
-//             "array entries have different ends");
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly");
+        }
+        uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
+        require(endOfFirstSubmission > block.timestamp,
+            "endOfFirstSubmission should be after the present time");
+        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future");
+        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends");
 
-//         // test first press
-//         test_pressButton();
+        // test first press
+        test_pressButton();
 
-//         // move time forward to just after cutoff
-//         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff());
-//         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
-//         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-//         rewardsSubmissions = abi.decode(
-//             rewardsSubmissionsRaw,
-//             (IRewardsCoordinator.RewardsSubmission[])
-//         );
+        // move time forward to just after cutoff
+        cheats.warp(actionGenerator.firstSubmissionTriggerCutoff());
+        actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
+        rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
+        rewardsSubmissions = abi.decode(
+            rewardsSubmissionsRaw,
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
+        );
 
-//         totalAmount = 0;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             totalAmount += rewardsSubmissions[i].amount;
-//         }
-//         expectedTotalAmount = 0;
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             expectedTotalAmount += _amounts[i];
-//         }
-//         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
-//         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-//             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
-//         }
+        totalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            totalAmount += rewardsSubmissions[i].amount;
+        }
+        expectedTotalAmount = 0;
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            expectedTotalAmount += _amounts[i];
+        }
+        assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
+        for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
+            assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
+        }
 
-//         assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
-//             "end of first submission and start of second should align");
-//         assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
-//             "array entries have different starts");
-//         assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
-//             "array entries have different durations");
+        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align");
+        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts");
+        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
+            "array entries have different durations");
 
-//         // test second press
-//         test_pressButton();
-//     }
+        // test second press
+        test_pressButton();
+    }
 
-//     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
-//     function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
-//         return bytestring[4:];
-//     }
+    // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
+    function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
+        return bytestring[4:];
+    }
 
-//     /// @dev Sort to ensure that the array is in ascending order for strategies
-//     function _sortArrayAsc(address[] memory arr) internal pure returns (address[] memory) {
-//         uint256 l = arr.length;
-//         for (uint256 i = 0; i < l; i++) {
-//             for (uint256 j = i + 1; j < l; j++) {
-//                 if (address(arr[i]) > address(arr[j])) {
-//                     address temp = arr[i];
-//                     arr[i] = arr[j];
-//                     arr[j] = temp;
-//                 }
-//             }
-//         }
-//         return arr;
-//     }
-// }
+    /// @dev Sort to ensure that the array is in ascending order for strategies
+    function _sortArrayAsc(address[] memory arr) internal pure returns (address[] memory) {
+        uint256 l = arr.length;
+        for (uint256 i = 0; i < l; i++) {
+            for (uint256 j = i + 1; j < l; j++) {
+                if (address(arr[i]) > address(arr[j])) {
+                    address temp = arr[i];
+                    arr[i] = arr[j];
+                    arr[j] = temp;
+                }
+            }
+        }
+        return arr;
+    }
+}
