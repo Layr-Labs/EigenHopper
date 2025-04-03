@@ -9,7 +9,7 @@ import { ITokenHopper } from "./interfaces/ITokenHopper.sol";
 import { IHopperActionGenerator } from "./interfaces/IHopperActionGenerator.sol";
 
 // We are going to use the standard OZ interfaces and implementations
-import "openzeppelin-contracts/contracts/access/Ownable.sol";
+import "@openzeppelin/contracts/access/Ownable.sol";
 import "@openzeppelin/contracts/token/ERC20/utils/SafeERC20.sol";
 
 /**

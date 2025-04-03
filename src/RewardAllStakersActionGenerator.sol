@@ -2,10 +2,10 @@
 pragma solidity ^0.8.12;
 
 import { IHopperActionGenerator } from "./interfaces/IHopperActionGenerator.sol";
-import { IRewardsCoordinator } from "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
+import { IRewardsCoordinator, IRewardsCoordinatorTypes } from "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
 
 // We are going to use the standard OZ interfaces and implementations
-import "openzeppelin-contracts/contracts/interfaces/IERC20.sol";
+import "@openzeppelin/contracts/interfaces/IERC20.sol";
 
 /**
  * RewardAllStakersActionGenerator 
@@ -24,14 +24,14 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
     uint32 public immutable CALCULATION_INTERVAL_SECONDS;
 
     // the single RewardsCoordinator contract for EigenLayer
-    IRewardsCoordinator public immutable rewardsCoordinator;
+    address public immutable rewardsCoordinator;
     // the bEIGEN token contract
     IERC20 public immutable bEIGEN;
     // the EIGEN token contract
     IERC20 public immutable EIGEN;
 
     // configuration set at construction, used in RewardsSubmissions
-    IRewardsCoordinator.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
+    IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
     uint256[2] public amounts;
 
     // timestamps used for special logic for the first submission
@@ -41,11 +41,11 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
     uint256 public firstSubmissionTriggerCutoff;
 
     constructor(
-        IRewardsCoordinator _rewardsCoordinator,
+        address _rewardsCoordinator,
         uint32 _firstSubmissionStartTimestamp,
         uint256 _firstSubmissionTriggerCutoff,
         uint256[2] memory _amounts,
-        IRewardsCoordinator.StrategyAndMultiplier[][2] memory _strategiesAndMultipliers,
+        IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] memory _strategiesAndMultipliers,
         IERC20 _bEIGEN,
         IERC20 _EIGEN
     )
@@ -56,7 +56,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
             "RewardAllStakersActionGenerator: bEIGEN cannot be zero address");
         require(address(_EIGEN) != address(0),
             "RewardAllStakersActionGenerator: EIGEN cannot be zero address");
-        CALCULATION_INTERVAL_SECONDS = _rewardsCoordinator.CALCULATION_INTERVAL_SECONDS();
+        CALCULATION_INTERVAL_SECONDS = IRewardsCoordinator(_rewardsCoordinator).CALCULATION_INTERVAL_SECONDS();
         // RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS
         require(_firstSubmissionStartTimestamp % CALCULATION_INTERVAL_SECONDS == 0,
             "RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
@@ -80,7 +80,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
                 currAddress = address(_strategiesAndMultipliers[i][j].strategy);
 
                 strategiesAndMultipliers[i].push(
-                    IRewardsCoordinator.StrategyAndMultiplier({
+                    IRewardsCoordinatorTypes.StrategyAndMultiplier({
                         strategy: _strategiesAndMultipliers[i][j].strategy,
                         multiplier: _strategiesAndMultipliers[i][j].multiplier
                     })
@@ -128,9 +128,9 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
 
         // HopperAction memory rewardsSubmissions;
         // rewardsSubmissions.target = rewardsCoordinator;
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinator.RewardsSubmission[](2);
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions = new IRewardsCoordinatorTypes.RewardsSubmission[](2);
         for (uint256 i = 0; i < 2; ++i) {
-            rewardsSubmissions[i] = IRewardsCoordinator.RewardsSubmission({
+            rewardsSubmissions[i] = IRewardsCoordinatorTypes.RewardsSubmission({
                 strategiesAndMultipliers: strategiesAndMultipliers[i],
                 token: EIGEN,
                 amount: amountsToUse[i],

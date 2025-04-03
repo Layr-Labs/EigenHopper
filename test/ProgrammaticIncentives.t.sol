@@ -12,7 +12,7 @@ import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
 
 import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 
-import "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
+import {DelegationManagerMock} from "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
 import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
 import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
 
@@ -32,7 +32,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         address indexed submitter,
         uint256 indexed submissionNonce,
         bytes32 indexed rewardsSubmissionHash,
-        IRewardsCoordinator.RewardsSubmission rewardsSubmission
+        IRewardsCoordinatorTypes.RewardsSubmission rewardsSubmission
     );
     event Transfer(address indexed from, address indexed to, uint256 value);
     event Approval(address indexed owner, address indexed spender, uint256 value);
@@ -57,7 +57,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     uint32 public _firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
     uint256 public _firstSubmissionTriggerCutoff = _firstSubmissionStartTimestamp + 5 weeks;
     uint256[2] public _amounts;
-    IRewardsCoordinator.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
+    IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public _strategiesAndMultipliers;
 
     // EIGEN token config
     address[] public minters;
@@ -117,7 +117,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         // deploy mocks
         delegationManagerMock = new DelegationManagerMock();
-        strategyManagerMock = new StrategyManagerMock();
+        strategyManagerMock = new StrategyManagerMock(IDelegationManager(address(delegationManagerMock)));
 
         // deploy implementations
         beigenImpl = IBackingEigen(deployContractFromBytecode(
@@ -128,33 +128,36 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         ));
         // deployed using mainnet values -- see https://etherscan.io/address/0x7750d328b314effa365a0402ccfd489b80b0adda
         rewardsCoordinatorImpl = new RewardsCoordinator({
-            _delegationManager: delegationManagerMock,
-            _strategyManager: strategyManagerMock,
+            _delegationManager: IDelegationManager(address(delegationManagerMock)),
+            _strategyManager: IStrategyManager(address(strategyManagerMock)),
+            _allocationManager: IAllocationManager(address(1)),
+            _pauserRegistry: IPauserRegistry(address(1)),
+            _permissionController: IPermissionController(address(1)),
             _CALCULATION_INTERVAL_SECONDS: 1 weeks,
             _MAX_REWARDS_DURATION: 10 weeks, 
             _MAX_RETROACTIVE_LENGTH: 24 weeks,
             _MAX_FUTURE_LENGTH: 30 days,
-            __GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
+            _GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
         });
 
         // upgrade proxies
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-        proxyAdmin.upgrade(TransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
+        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
 
         // deploy ActionGenerator & Hopper
         _amounts[0] = 100;
         _amounts[1] = 200;
-        _strategiesAndMultipliers[0].push(IRewardsCoordinator.StrategyAndMultiplier({
+        _strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
             strategy: IStrategy(address(eigen)),
             multiplier: 1e18
         }));
-        _strategiesAndMultipliers[1].push(IRewardsCoordinator.StrategyAndMultiplier({
+        _strategiesAndMultipliers[1].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
             strategy: IStrategy(address(eigen)),
             multiplier: 1e18
         }));
         actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: rewardsCoordinator,
+            _rewardsCoordinator: address(rewardsCoordinator),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
             _firstSubmissionTriggerCutoff: _firstSubmissionTriggerCutoff,
             _amounts: _amounts,
@@ -204,11 +207,10 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // initialize RewardsCoordinator
         rewardsCoordinator.initialize({
             initialOwner: initialOwner,
-            _pauserRegistry: _pauserRegistry,
             initialPausedStatus: 0,
             _rewardsUpdater: _rewardsUpdater,
             _activationDelay: 1 weeks,
-            _globalCommissionBips: 1000
+            _defaultSplitBips: 1000
         });
         cheats.prank(Ownable(address(rewardsCoordinator)).owner());
         rewardsCoordinator.setRewardsForAllSubmitter(address(tokenHopper), true);
@@ -224,14 +226,14 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
         uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
         {
             IHopperActionGenerator.HopperAction[] memory actions =
                 actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
             bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
             rewardsSubmissions = abi.decode(
                 rewardsSubmissionsRaw,
-                (IRewardsCoordinator.RewardsSubmission[])
+                (IRewardsCoordinatorTypes.RewardsSubmission[])
             );
         }
         uint256 totalAmount;
@@ -261,7 +263,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // events for RewardsCoordinator performing the transfers
         uint256 remainingAllowance = totalAmount;
         for (uint256 i = 0; i < 1; ++i) {
-            IRewardsCoordinator.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
+            IRewardsCoordinatorTypes.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
 
             bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
             cheats.expectEmit(true, true, true, true, address(rewardsCoordinator));
@@ -307,13 +309,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
     function test_pressButton_MultipleCycles() public {
         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 3 days);
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
         IHopperActionGenerator.HopperAction[] memory actions =
             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
             rewardsSubmissionsRaw,
-            (IRewardsCoordinator.RewardsSubmission[])
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
         );
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
@@ -356,7 +358,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
             rewardsSubmissionsRaw,
-            (IRewardsCoordinator.RewardsSubmission[])
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
         );
 
         totalAmount = 0;
@@ -385,13 +387,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
     function test_pressButton_MultipleCycles_EdgeTiming() public {
         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff() - 1);
-        IRewardsCoordinator.RewardsSubmission[] memory rewardsSubmissions;
+        IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
         IHopperActionGenerator.HopperAction[] memory actions =
             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
             rewardsSubmissionsRaw,
-            (IRewardsCoordinator.RewardsSubmission[])
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
         );
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
@@ -435,7 +437,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
         rewardsSubmissions = abi.decode(
             rewardsSubmissionsRaw,
-            (IRewardsCoordinator.RewardsSubmission[])
+            (IRewardsCoordinatorTypes.RewardsSubmission[])
         );
 
         totalAmount = 0;
