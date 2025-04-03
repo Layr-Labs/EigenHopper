@@ -18,12 +18,9 @@ contract Deploy is EOADeployer {
     TokenHopper public tokenHopper;
     RewardAllStakersActionGenerator public actionGenerator;
 
-    // RewardsCoordinator config
-    uint32 GENESIS_REWARDS_TIMESTAMP = 1710979200;
-
-    // Action Generator config
-    uint32 public firstSubmissionStartTimestamp = uint32(GENESIS_REWARDS_TIMESTAMP + 50 weeks);
-    uint256 public firstSubmissionTriggerCutoff = firstSubmissionStartTimestamp + 5 weeks;
+    // Action Generator config -- hardcoding + reusing previous values
+    uint32 public firstSubmissionStartTimestamp = 1723680000;
+    uint256 public firstSubmissionTriggerCutoff = 1727913600;
     uint256[2] public amounts;
     IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
 
