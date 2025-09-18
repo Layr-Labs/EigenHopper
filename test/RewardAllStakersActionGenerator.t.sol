@@ -82,7 +82,9 @@ contract RewardAllStakersActionGeneratorTests is Test {
 
     function test_deployRevertsWithBadFirstSubmissionStart() public {
         _firstSubmissionStartTimestamp = 1;
-        cheats.expectRevert("RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
+        cheats.expectRevert(
+            "RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS"
+        );
         actionGenerator = new RewardAllStakersActionGenerator({
             _rewardsCoordinator: address(rewardsCoordinatorMock),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
@@ -108,14 +110,12 @@ contract RewardAllStakersActionGeneratorTests is Test {
     }
 
     function test_deployRevertsWithUnorderedStrategies() public {
-        strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
-            strategy: IStrategy(address(_EIGEN)),
-            multiplier: 1e18
-        }));
-        strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
-            strategy: IStrategy(address(_EIGEN)),
-            multiplier: 1e18
-        }));
+        strategiesAndMultipliers[0].push(
+            IRewardsCoordinatorTypes.StrategyAndMultiplier({strategy: IStrategy(address(_EIGEN)), multiplier: 1e18})
+        );
+        strategiesAndMultipliers[0].push(
+            IRewardsCoordinatorTypes.StrategyAndMultiplier({strategy: IStrategy(address(_EIGEN)), multiplier: 1e18})
+        );
 
         cheats.expectRevert("RewardAllStakersActionGenerator: strategies must be in ascending order for submission");
         actionGenerator = new RewardAllStakersActionGenerator({
