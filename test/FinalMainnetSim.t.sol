@@ -6,7 +6,8 @@ import "forge-std/console.sol";
 import "src/TokenHopper.sol";
 import "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
 
-contract FinalMainnetSimTest is Test {
+/// @dev Tests what the total supply of bEIGEN should be after the old hopper's last two button presses
+contract OldHopperMainnetSimTest is Test {
     Vm cheats = Vm(VM_ADDRESS);
 
     // Pointer to addresses on mainnet
