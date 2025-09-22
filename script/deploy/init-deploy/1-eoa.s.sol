@@ -75,7 +75,7 @@ contract Deploy is EOADeployer {
         deployedStrategyArray[deployedStrategyCount] = uint256(uint160(address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0)));
 
         // sort array
-        deployedStrategyArray = sort(deployedStrategyArray);
+        deployedStrategyArray = vm.sort(deployedStrategyArray);
 
         // write sorted array and multipliers
         for (uint256 i = 0; i < deployedStrategyCount; ++i) {
@@ -124,29 +124,4 @@ contract Deploy is EOADeployer {
 
         vm.stopBroadcast();
     }
-
-    function sort(uint256[] memory array) internal pure returns (uint256[] memory) {
-        if (array.length <= 1) return array;
-
-        for (uint i = 1; i < array.length; i++) {
-            uint256 key = array[i];
-            uint j = i - 1;
-
-            while (j > 0 && uint(array[j]) > uint(key)) {
-                array[j + 1] = array[j];
-                j--;
-            }
-
-            // Special case for the first element
-            if (j == 0 && uint(array[j]) > uint(key)) {
-                array[j + 1] = array[j];
-                array[j] = key;
-            } else if (j < i - 1) {
-                array[j + 1] = key;
-            }
-        }
-
-        return array;
-    }
-
 }
