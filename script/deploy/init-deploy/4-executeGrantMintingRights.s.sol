@@ -5,8 +5,8 @@ import {SetRewardsPermission} from "./3-setRewardsPermission.s.sol";
 import {QueueGrantMintingRights} from "./2-queueGrantMintingRights.s.sol";
 
 import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
-import "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
-import "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
+import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
+import {Encode} from "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
 
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 

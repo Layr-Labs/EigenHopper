@@ -4,9 +4,9 @@ pragma solidity ^0.8.12;
 import {Deploy} from "./1-eoa.s.sol";
 
 import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
-import "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
+import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
 import {MultisigBuilder} from "eigenlayer-contracts/lib/zeus-templates/src/templates/MultisigBuilder.sol";
-import "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
+import {Encode, MultisigCall} from "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
 
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 

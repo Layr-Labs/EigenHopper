@@ -21,17 +21,19 @@ contract Deploy is EOADeployer {
     /// -----------------------------------------------------------------------
 
     /// @dev The weekly distribution of EIGEN supply for EIGEN stakers.
+    /// Denominated in WAD (18 decimals).
     uint256 internal constant EIGEN_STAKERS_WEEKLY_DISTRIBUTION = 321855.12851628076923077 ether;
 
     /// @dev The weekly distribution of EIGEN supply for ETH stakers.
+    /// Denominated in WAD (18 decimals).
     uint256 internal constant ETH_STAKERS_WEEKLY_DISTRIBUTION = 965565.385548842307692308 ether;
 
-    /// @dev The start timestamp of the first submission.
+    /// @dev The unix start timestamp of the first submission.
     /// Rewards submissions are prevented before this date.
     /// Must be a multiple of `CALCULATION_INTERVAL_SECONDS` (1 week).
     uint32 internal constant FIRST_SUBMISSION_START_TIMESTAMP = 1723680000; // Thu Aug 15 2024 00:00:00 GMT+0000
 
-    /// @dev The cutoff timestamp of the first submission.
+    /// @dev The cutoff unix timestamp of the first submission.
     /// Before this cutoff, the `RewardAllStakersActionGenerator` uses special "catch-up" logic that allows
     /// multiple weeks of rewards to be distributed in a single submission. This handles the case where
     /// the rewards distribution might start late (e.g., if deployed after `FIRST_SUBMISSION_START_TIMESTAMP`).
@@ -42,11 +44,17 @@ contract Deploy is EOADeployer {
     /// Deployment Test Parameters
     /// -----------------------------------------------------------------------
 
-    uint256 internal constant yearlyPercentageEigenStakers = 0.01 ether;
+    /// @dev The expected yearly percentage distribution of EIGEN supply for EIGEN stakers.
+    /// Denominated in WAD (18 decimals).
+    uint256 internal constant EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION = 0.01 ether;
 
-    uint256 internal constant yearlyPercentageEthStakers = 0.03 ether;
+    /// @dev The expected yearly percentage distribution of EIGEN supply for ETH stakers.
+    /// Denominated in WAD (18 decimals).
+    uint256 internal constant EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION = 0.03 ether;
 
-    uint256 internal constant totalEigenSupply = 1673646668.28466 ether;
+    /// @dev The final total supply of EIGEN.
+    /// Denominated in WAD (18 decimals).
+    uint256 internal constant EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY = 1673646668.28466 ether;
 
     /// -----------------------------------------------------------------------
     ///
@@ -75,14 +83,14 @@ contract Deploy is EOADeployer {
         );
         assertApproxEqAbs({
             left: EIGEN_STAKERS_WEEKLY_DISTRIBUTION * 52,
-            right: totalEigenSupply * yearlyPercentageEigenStakers / 1 ether,
+            right: EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY * EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION / 1 ether,
             maxDelta: 100 wei
         });
         // error: "Total EIGEN supply distributed over 52 weeks to EIGEN stakers is incorrect"
 
         assertApproxEqAbs({
             left: ETH_STAKERS_WEEKLY_DISTRIBUTION * 52,
-            right: totalEigenSupply * yearlyPercentageEthStakers / 1 ether,
+            right: EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY * EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION / 1 ether,
             maxDelta: 100 wei
         });
         // error: "Total EIGEN supply distributed over 52 weeks to ETH stakers is incorrect"

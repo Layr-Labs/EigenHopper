@@ -22,7 +22,7 @@ library TimeUtils {
             " ",
             monthString(month),
             " ",
-            vm.toString(day),
+            toPaddedString(day),
             " ",
             vm.toString(year),
             " ",
