@@ -23,7 +23,7 @@ contract SetRewardsPermission is QueueGrantMintingRights {
             "token hopper does not have requisite permission on rewardsCoordinator"
         );
 
-        // TODO: Any additional checks?
+        // TODO: Check if old token hopper still has permission.
     }
 
     /// @dev Internal helper to improve readability.

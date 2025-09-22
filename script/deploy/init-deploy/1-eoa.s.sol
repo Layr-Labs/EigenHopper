@@ -22,11 +22,11 @@ contract Deploy is EOADeployer {
 
     /// @dev The weekly distribution of EIGEN supply for EIGEN stakers.
     /// Denominated in WAD (18 decimals).
-    uint256 internal constant EIGEN_STAKERS_WEEKLY_DISTRIBUTION = 321855.12851628076923077 ether;
+    uint256 internal constant EIGEN_STAKERS_WEEKLY_DISTRIBUTION = 1346839.922406590295857988 ether;
 
     /// @dev The weekly distribution of EIGEN supply for ETH stakers.
     /// Denominated in WAD (18 decimals).
-    uint256 internal constant ETH_STAKERS_WEEKLY_DISTRIBUTION = 965565.385548842307692308 ether;
+    uint256 internal constant ETH_STAKERS_WEEKLY_DISTRIBUTION = 1010129.941804942721893491 ether;
 
     /// @dev The unix start timestamp of the first submission.
     /// Rewards submissions are prevented before this date.
@@ -46,7 +46,7 @@ contract Deploy is EOADeployer {
 
     /// @dev The expected yearly percentage distribution of EIGEN supply for EIGEN stakers.
     /// Denominated in WAD (18 decimals).
-    uint256 internal constant EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION = 0.01 ether;
+    uint256 internal constant EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION = 0.04 ether;
 
     /// @dev The expected yearly percentage distribution of EIGEN supply for ETH stakers.
     /// Denominated in WAD (18 decimals).
@@ -54,7 +54,7 @@ contract Deploy is EOADeployer {
 
     /// @dev The final total supply of EIGEN.
     /// Denominated in WAD (18 decimals).
-    uint256 internal constant EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY = 1673646668.28466 ether;
+    uint256 internal constant EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY = 1750891899.128567384615384681 ether;
 
     /// -----------------------------------------------------------------------
     ///
@@ -76,7 +76,7 @@ contract Deploy is EOADeployer {
     function constructArrays() internal {
         TimeUtils.assertEq(FIRST_SUBMISSION_START_TIMESTAMP, "Thu Aug 15 2024 00:00:00 GMT+0000");
         TimeUtils.assertEq(FIRST_SUBMISSION_TRIGGER_CUTOFF, "Thu Oct 03 2024 00:00:00 GMT+0000");
-        assertLt(
+        assertGt(
             EIGEN_STAKERS_WEEKLY_DISTRIBUTION,
             ETH_STAKERS_WEEKLY_DISTRIBUTION,
             "ETH stakers expected to get larger share of distribution"
@@ -150,7 +150,7 @@ contract Deploy is EOADeployer {
                 doesExpire: false,
                 expirationTimestamp: type(uint256).max
             }),
-            initialOwner: address(0) // TODO: Is this wanted?
+            initialOwner: address(0) // No rights are conferred to owner (since hopper is non-expiring).
         });
 
         // 3) Update enviorment variables for `actionGenerator` and `tokenHopper`.
