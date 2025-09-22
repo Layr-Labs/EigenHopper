@@ -15,12 +15,7 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
     using Encode for *;
     using ZEnvHelpers for *;
 
-    function _runAsMultisig()
-        internal
-        virtual
-        override
-        prank(Env.opsMultisig())
-    {
+    function _runAsMultisig() internal virtual override prank(Env.opsMultisig()) {
         bytes memory calldata_to_executor = _getCalldataToExecutor_queueChanges();
 
         TimelockController timelock = Env.timelockController();
@@ -36,21 +31,18 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
 
     /// @dev Get the calldata to be sent from the timelock to the executor
     function _getCalldataToExecutor_queueChanges() internal virtual returns (bytes memory) {
-        MultisigCall[] storage executorCalls = Encode
-            .newMultisigCalls()
-            .append({
-                to: address(Env.proxy.beigen()),
-                // data: abi.encodeWithSignature("setIsMinter(address,bool)", Env.tokenHopper(), true)
-                data: abi.encodeWithSignature("setIsMinter(address,bool)", ZEnvHelpers.state().envAddress("tokenHopper"), true)
-            });
-            
-        return
-            Encode.gnosisSafe.execTransaction({
-                from: address(Env.timelockController()),
-                to: address(Env.multiSendCallOnly()),
-                op: Encode.Operation.DelegateCall,
-                data: Encode.multiSend(executorCalls)
-            });
+        MultisigCall[] storage executorCalls = Encode.newMultisigCalls().append({
+            to: address(Env.proxy.beigen()),
+            // data: abi.encodeWithSignature("setIsMinter(address,bool)", Env.tokenHopper(), true)
+            data: abi.encodeWithSignature("setIsMinter(address,bool)", ZEnvHelpers.state().envAddress("tokenHopper"), true)
+        });
+
+        return Encode.gnosisSafe.execTransaction({
+            from: address(Env.timelockController()),
+            to: address(Env.multiSendCallOnly()),
+            op: Encode.Operation.DelegateCall,
+            data: Encode.multiSend(executorCalls)
+        });
     }
 
     function testScript() public virtual {
@@ -67,18 +59,12 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
         });
 
         // Check that the change does not exist in the timelock
-        assertFalse(
-            timelock.isOperationPending(txHash),
-            "Transaction should NOT be queued."
-        );
+        assertFalse(timelock.isOperationPending(txHash), "Transaction should NOT be queued.");
 
         _runAsMultisig();
 
         // Check that the change has been added to the timelock
-        assertTrue(
-            timelock.isOperationPending(txHash),
-            "Transaction should be queued."
-        );
+        assertTrue(timelock.isOperationPending(txHash), "Transaction should be queued.");
     }
 
     function getTimelockId() public virtual returns (bytes32) {
