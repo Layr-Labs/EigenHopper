@@ -72,9 +72,14 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         TimeUtils.assertEq(oct9th2024, "Wed Oct 09 2024 00:00:00 GMT+0000");
         TimeUtils.assertEq(oct16th2024, "Wed Oct 16 2024 00:00:00 GMT+0000");
         
+        // TODO: This current fails... should it?
+        // // Verify we cannot press before October 9th
+        // vm.expectRevert("TokenHopper.pressButton: button currently unpressable.");
+        // tokenHopper.pressButton();
+
         // Warp to October 9th and press button
         vm.warp(oct9th2024);
-        vm.expectEmit(false, false, false, false, address(tokenHopper));
+        vm.expectEmit(true, false, false, false, address(tokenHopper));
         emit ButtonPressed(address(this), oct16th2024); // Cooldown horizon should be Oct 16th
         tokenHopper.pressButton();
         
@@ -84,6 +89,8 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         
         // Warp to October 16th and verify we can press again
         vm.warp(oct16th2024);
+        vm.expectEmit(true, false, false, false, address(tokenHopper));
+        emit ButtonPressed(address(this), oct16th2024 + 1 weeks); // Cooldown horizon should be Oct 16th
         assertTrue(tokenHopper.canPress(), "Should be able to press on October 16th");
         tokenHopper.pressButton();
     }
