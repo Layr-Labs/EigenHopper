@@ -54,9 +54,9 @@ contract Deploy is EOADeployer {
     /// Denominated in WAD (18 decimals).
     uint256 internal constant EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION = 0.03 ether;
 
-    /// @dev The final total supply of EIGEN.
+    /// @dev The starting total supply of EIGEN.
     /// Denominated in WAD (18 decimals).
-    uint256 internal constant EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY = 1750891899.128567384615384681 ether;
+    uint256 internal constant STARTING_EIGEN_SUPPLY = 1750891899.128567384615384681 ether;
 
     /// -----------------------------------------------------------------------
     ///
@@ -85,14 +85,14 @@ contract Deploy is EOADeployer {
         );
         assertApproxEqAbs({
             left: EIGEN_STAKERS_WEEKLY_DISTRIBUTION * 52,
-            right: EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY * EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION / 1 ether,
+            right: STARTING_EIGEN_SUPPLY * EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION / 1 ether,
             maxDelta: 100 wei
         });
         // error: "Total EIGEN supply distributed over 52 weeks to EIGEN stakers is incorrect"
 
         assertApproxEqAbs({
             left: ETH_STAKERS_WEEKLY_DISTRIBUTION * 52,
-            right: EXPECTED_FINAL_TOTAL_EIGEN_SUPPLY * EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION / 1 ether,
+            right: STARTING_EIGEN_SUPPLY * EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION / 1 ether,
             maxDelta: 100 wei
         });
         // error: "Total EIGEN supply distributed over 52 weeks to ETH stakers is incorrect"
