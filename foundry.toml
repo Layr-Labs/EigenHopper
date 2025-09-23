@@ -3,7 +3,10 @@ src = "src"
 out = "out"
 libs = ["lib"]
 
-fs_permissions = [{ access = "read", path = "./" }]
+fs_permissions = [
+    { access = "read", path = "./" },
+    { access = "write", path = "./" }
+]
 
 no_match_path = "script/deploy/**/*.sol"
 
