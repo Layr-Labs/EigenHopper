@@ -43,25 +43,18 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         // move forward in time so we can execute the action
         vm.warp(block.timestamp + Env.timelockController().getMinDelay());
         _runAsMultisig();
-
-        // Validate that the token hopper has mintingRights
-        (bool success, bytes memory returndata) = address(Env.proxy.beigen()).staticcall(
-            abi.encodeWithSignature("isMinter(address)", ZEnvHelpers.state().envAddress("tokenHopper"))
-        );
-        require(success, "call failed");
-        bool retVal = abi.decode(returndata, (bool));
-        require(retVal, "token hopper does not have minting permission");
-
+        // Validate that the token hopper has minting permissions.
         assertTrue(
             IBackingEigen2(address(Env.proxy.beigen())).isMinter(ZEnvHelpers.state().envAddress("tokenHopper")),
-            "tokenHopper should have minting rights"
+            "new token hopper should have minting rights"
         );
+        // Validate that the old token hopper does not have minting permissions.
         assertFalse(
             IBackingEigen2(address(Env.proxy.beigen())).isMinter(OLD_TOKEN_HOPPER),
-            "OLD_TOKEN_HOPPER should not have minting rights"
+            "old token hopper should not have minting rights"
         );
 
-        vm.expectRevert("BackingEigen.mintTo: caller is not a minter");
+        vm.expectRevert("TokenHopper.pressButton: call reverted");
         ITokenHopper(OLD_TOKEN_HOPPER).pressButton();
     }
 }
