@@ -63,14 +63,14 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         // Test rewards submission timeline
         ITokenHopper tokenHopper = ITokenHopper(ZEnvHelpers.state().envAddress("tokenHopper"));
         
-        // Wed Oct 09 2024 00:00:00 GMT+0000 = 1728432000
-        // Wed Oct 16 2024 00:00:00 GMT+0000 = 1729036800
-        uint256 oct9th2024 = 1728432000;
-        uint256 oct16th2024 = 1729036800;
+        // Thu Oct 09 2025 04:00:00 GMT+0000 = 1759982400
+        // Thu Oct 16 2025 04:00:00 GMT+0000 = 1760587200
+        uint256 oct9th2025 = 1759982400;
+        uint256 oct16th2025 = 1760587200;
         
         // Verify timestamps using TimeUtils
-        TimeUtils.assertEq(oct9th2024, "Wed Oct 09 2024 00:00:00 GMT+0000");
-        TimeUtils.assertEq(oct16th2024, "Wed Oct 16 2024 00:00:00 GMT+0000");
+        TimeUtils.assertEq(oct9th2025, "Thu Oct 09 2025 04:00:00 GMT+0000");
+        TimeUtils.assertEq(oct16th2025, "Thu Oct 16 2025 04:00:00 GMT+0000");
         
         // TODO: This current fails... should it?
         // // Verify we cannot press before October 9th
@@ -78,9 +78,9 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         // tokenHopper.pressButton();
 
         // Warp to October 9th and press button
-        vm.warp(oct9th2024);
+        vm.warp(oct9th2025);
         vm.expectEmit(true, false, false, false, address(tokenHopper));
-        emit ButtonPressed(address(this), oct16th2024); // Cooldown horizon should be Oct 16th
+        emit ButtonPressed(address(this), oct16th2025); // Cooldown horizon should be Oct 16th
         tokenHopper.pressButton();
         
         // Verify we cannot press again until October 16th
@@ -88,9 +88,9 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         tokenHopper.pressButton();
         
         // Warp to October 16th and verify we can press again
-        vm.warp(oct16th2024);
+        vm.warp(oct16th2025);
         vm.expectEmit(true, false, false, false, address(tokenHopper));
-        emit ButtonPressed(address(this), oct16th2024 + 1 weeks); // Cooldown horizon should be Oct 16th
+        emit ButtonPressed(address(this), oct16th2025 + 1 weeks); // Cooldown horizon should be Oct 16th
         assertTrue(tokenHopper.canPress(), "Should be able to press on October 16th");
         tokenHopper.pressButton();
     }
