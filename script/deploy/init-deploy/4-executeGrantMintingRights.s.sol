@@ -9,6 +9,7 @@ import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEn
 import {Encode} from "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
 
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {ITokenHopper} from "src/interfaces/ITokenHopper.sol";
 
 contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     using Env for *;
@@ -58,7 +59,10 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         assertFalse(
             IBackingEigen2(address(Env.proxy.beigen())).isMinter(OLD_TOKEN_HOPPER),
             "OLD_TOKEN_HOPPER should not have minting rights"
-        );    
+        );
+
+        vm.expectRevert("BackingEigen.mintTo: caller is not a minter");
+        ITokenHopper(OLD_TOKEN_HOPPER).pressButton();
     }
 }
 

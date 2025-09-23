@@ -33,14 +33,14 @@ contract Deploy is EOADeployer {
     /// @dev The unix start timestamp of the first submission.
     /// Rewards submissions are prevented before this date.
     /// Must be a multiple of `CALCULATION_INTERVAL_SECONDS` (1 week).
-    uint32 internal constant FIRST_SUBMISSION_START_TIMESTAMP = 0; // Thu Aug 15 2024 00:00:00 GMT+0000
+    uint32 internal constant FIRST_SUBMISSION_START_TIMESTAMP = 0; // Thu Jan 01 1970 00:00:00 GMT+0000
 
     /// @dev The cutoff unix timestamp of the first submission.
     /// Before this cutoff, the `RewardAllStakersActionGenerator` uses special "catch-up" logic that allows
     /// multiple weeks of rewards to be distributed in a single submission. This handles the case where
     /// the rewards distribution might start late (e.g., if deployed after `FIRST_SUBMISSION_START_TIMESTAMP`).
     /// After this cutoff, normal weekly distribution logic applies (one week of rewards per submission).
-    uint256 internal constant FIRST_SUBMISSION_TRIGGER_CUTOFF = 0; // Thu Oct 03 2024 00:00:00 GMT+0000
+    uint256 internal constant FIRST_SUBMISSION_TRIGGER_CUTOFF = 0; // Thu Jan 01 1970 00:00:00 GMT+0000
 
     /// -----------------------------------------------------------------------
     /// Deployment Test Parameters
