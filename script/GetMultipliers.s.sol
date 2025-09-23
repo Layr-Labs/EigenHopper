@@ -239,9 +239,6 @@ contract GetMultipliers is Test, Script {
     }
 
     function _writeStrategiesToToml() internal {         
-        /// Get the network from the environment
-        string memory network = cheats.envString("NETWORK");
-
         // Convert addresses to strings (using sortedStrategyAddresses which has IStrategy type)
         string[] memory strategyStrings = new string[](sortedStrategyAddresses.length);
         for (uint256 i = 0; i < sortedStrategyAddresses.length; i++) {
