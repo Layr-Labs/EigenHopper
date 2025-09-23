@@ -50,5 +50,18 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         require(success, "call failed");
         bool retVal = abi.decode(returndata, (bool));
         require(retVal, "token hopper does not have minting permission");
+
+        assertTrue(
+            IBackingEigen2(address(Env.proxy.beigen())).isMinter(ZEnvHelpers.state().envAddress("tokenHopper")),
+            "tokenHopper should have minting rights"
+        );
+        assertFalse(
+            IBackingEigen2(address(Env.proxy.beigen())).isMinter(OLD_TOKEN_HOPPER),
+            "OLD_TOKEN_HOPPER should not have minting rights"
+        );    
     }
+}
+
+interface IBackingEigen2 {
+    function isMinter(address who) external view returns (bool);
 }

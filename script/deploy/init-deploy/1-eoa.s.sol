@@ -16,6 +16,8 @@ contract Deploy is EOADeployer {
     using Env for *;
     using ZEnvHelpers for *;
 
+    address internal constant OLD_TOKEN_HOPPER = 0x0ffC6AC10515EE0F83fEE71FCaf5Ea5805256563;
+
     /// -----------------------------------------------------------------------
     /// Deployment Parameters
     /// -----------------------------------------------------------------------

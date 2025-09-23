@@ -33,8 +33,10 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
     function _getCalldataToExecutor_queueChanges() internal virtual returns (bytes memory) {
         MultisigCall[] storage executorCalls = Encode.newMultisigCalls().append({
             to: address(Env.proxy.beigen()),
-            // data: abi.encodeWithSignature("setIsMinter(address,bool)", Env.tokenHopper(), true)
             data: abi.encodeWithSignature("setIsMinter(address,bool)", ZEnvHelpers.state().envAddress("tokenHopper"), true)
+        }).append({
+            to: address(Env.proxy.beigen()),
+            data: abi.encodeWithSignature("setIsMinter(address,bool)", OLD_TOKEN_HOPPER, false)
         });
 
         return Encode.gnosisSafe.execTransaction({

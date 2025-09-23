@@ -9,8 +9,6 @@ contract SetRewardsPermission is QueueGrantMintingRights {
     using Env for *;
     using ZEnvHelpers for *;
 
-    address internal constant OLD_TOKEN_HOPPER = 0x0ffC6AC10515EE0F83fEE71FCaf5Ea5805256563;
-
     function _runAsMultisig() internal virtual override prank(Env.opsMultisig()) {
         Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(_tokenHopper(), true);
         Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(OLD_TOKEN_HOPPER, false);
