@@ -4,8 +4,7 @@ out = "out"
 libs = ["lib"]
 
 fs_permissions = [
-    { access = "read", path = "./" },
-    { access = "write", path = "./" }
+    { access = "read-write", path = "./script/" }
 ]
 
 no_match_path = "script/deploy/**/*.sol"

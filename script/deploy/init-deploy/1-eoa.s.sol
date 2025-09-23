@@ -97,6 +97,10 @@ contract Deploy is EOADeployer {
         });
         // error: "Total EIGEN supply distributed over 52 weeks to ETH stakers is incorrect"
 
+        string memory toml = vm.readFile("./script/mainnet.toml");
+        address[] memory strategies = vm.parseTomlAddressArray(toml, ".strategies.strategies");
+        uint256[] memory multipliers = vm.parseTomlUintArray(toml, ".multipliers.multipliers");
+
         strategiesAndMultipliers[0].push(
             IRewardsCoordinatorTypes.StrategyAndMultiplier({
                 strategy: IStrategy(address(Env.proxy.eigenStrategy())),
@@ -104,22 +108,12 @@ contract Deploy is EOADeployer {
             })
         );
 
-        uint256 deployedStrategyCount = Env.instance.strategyBaseTVLLimits_Count();
-        uint256[] memory deployedStrategyArray = new uint256[](deployedStrategyCount + 1);
-        for (uint256 i = 0; i < deployedStrategyCount; ++i) {
-            deployedStrategyArray[i] = uint256(uint160(address(Env.instance.strategyBaseTVLLimits(i))));
-        }
-        deployedStrategyArray[deployedStrategyCount] =
-            uint256(uint160(address(0xbeaC0eeEeeeeEEeEeEEEEeeEEeEeeeEeeEEBEaC0)));
-        deployedStrategyArray = vm.sort(deployedStrategyArray);
-
         // write sorted array and multipliers
-        for (uint256 i = 0; i < deployedStrategyCount; ++i) {
+        for (uint256 i = 0; i < strategies.length; ++i) {
             strategiesAndMultipliers[1].push(
                 IRewardsCoordinatorTypes.StrategyAndMultiplier({
-                    strategy: IStrategy(address(uint160(deployedStrategyArray[i]))),
-                    // TODO: note that this is hard-coded -- should probably look values up somehow
-                    multiplier: 1e18
+                    strategy: IStrategy(strategies[i]),
+                    multiplier: uint96(multipliers[i])
                 })
             );
         }
