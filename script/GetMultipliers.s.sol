@@ -18,8 +18,10 @@ contract GetMultipliers is Test, Script {
     Vm cheats = Vm(VM_ADDRESS);
 
     // List of strategy addresses
-    uint256[] public strategyAddresses; /// @dev used to hold the strategy addresses in the `uint256` type, useful for sorting
-    IStrategy[] public sortedStrategyAddresses; /// @dev used to hold the sorted strategy addresses in the `IStrategy` type
+    uint256[] public strategyAddresses;
+    /// @dev used to hold the strategy addresses in the `uint256` type, useful for sorting
+    IStrategy[] public sortedStrategyAddresses;
+    /// @dev used to hold the sorted strategy addresses in the `IStrategy` type
     uint256[] public multipliers;
 
     // Constant of 1 share value
@@ -40,7 +42,7 @@ contract GetMultipliers is Test, Script {
 
         // Convert the strategy addresses to IStrategy types
         sortedStrategyAddresses = new IStrategy[](strategyAddresses.length);
-        for (uint i; i < sortedStrategyAddresses.length; ++i) {
+        for (uint256 i; i < sortedStrategyAddresses.length; ++i) {
             sortedStrategyAddresses[i] = IStrategy(address(uint160(strategyAddresses[i])));
         }
 
@@ -124,12 +126,12 @@ contract GetMultipliers is Test, Script {
         multipliers[12] = ONE_SHARE;
 
         // Log all multipliers
-        for (uint i; i < multipliers.length; ++i) {
+        for (uint256 i; i < multipliers.length; ++i) {
             console.log("multiplier %s: %s", i, multipliers[i]);
         }
 
         // Sanity test the multipliers are all between 1e18 and 1.25e18
-        for (uint i; i < multipliers.length; ++i) {
+        for (uint256 i; i < multipliers.length; ++i) {
             assertGe(multipliers[i], 1e18);
             assertLe(multipliers[i], 1.25e18);
         }
@@ -150,7 +152,7 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling sharesToBonds on the ankrETH token
     function get_ankrETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         IAnkrETH ankrETH = IAnkrETH(address(strategy.underlyingToken()));
-        
+
         multiplier = ankrETH.sharesToBonds(ONE_SHARE);
     }
 
@@ -158,16 +160,16 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `getExchangeRate` on the rETH token
     function get_rETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         IRETH rETH = IRETH(address(strategy.underlyingToken()));
-        
+
         multiplier = rETH.getExchangeRate();
     }
 
-    /// 4. mETH 
+    /// 4. mETH
     /// @dev Retrieved from calling `mETHtoETH` on the mETH staking contract
     function get_mETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         IMETH mETH = IMETH(address(strategy.underlyingToken()));
         IMETH mETHStakingContract = IMETH(address(mETH.stakingContract()));
-        
+
         multiplier = mETHStakingContract.mETHToETH(ONE_SHARE);
     }
 
@@ -175,16 +177,16 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `exchangeRate` on the cbETH token
     function get_cbETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         ICBETH cbETH = ICBETH(address(strategy.underlyingToken()));
-        
+
         multiplier = cbETH.exchangeRate();
     }
 
     /// 6. osETH
     /// @dev Retrieved from calling `getRate` on the osETH rate provider contract
     /// @dev Contract address: 0x8023518b2192FB5384DAdc596765B3dD1cdFe471: https://docs.stakewise.io/for-developers/networks/mainnet
-    function get_osETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
+    function get_osETH_multiplier(IStrategy) internal returns (uint256 multiplier) {
         IosETH osETH = IosETH(0x8023518b2192FB5384DAdc596765B3dD1cdFe471);
-        
+
         multiplier = osETH.getRate();
     }
 
@@ -192,7 +194,7 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `exchangeRate` on the wBETH token
     function get_wBETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         IwBETH wBETH = IwBETH(address(strategy.underlyingToken()));
-        
+
         multiplier = wBETH.exchangeRate();
     }
 
@@ -200,7 +202,7 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `pricePerShare` on the sfrxETH token
     function get_sfrxETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         ISfrxETH sfrxETH = ISfrxETH(address(strategy.underlyingToken()));
-        
+
         multiplier = sfrxETH.pricePerShare();
     }
 
@@ -215,18 +217,18 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `exchangeRate` on the ETHx oracle contract
     /// @dev Contract address: 0xF64bAe65f6f2a5277571143A24FaaFDFC0C2a737: https://staderlabs.gitbook.io/ethereum/smart-contracts
     /// @dev exchangeRate = totalETHBalance * ONE_SHARE / totalETHXSupply
-    function get_ETHx_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
+    function get_ETHx_multiplier(IStrategy) internal returns (uint256 multiplier) {
         IETHx ETHx = IETHx(0xF64bAe65f6f2a5277571143A24FaaFDFC0C2a737);
-        
+
         (, uint256 totalETHBalance, uint256 totalETHXSupply) = ETHx.exchangeRate();
 
-        multiplier = totalETHBalance  * ONE_SHARE / totalETHXSupply;
+        multiplier = totalETHBalance * ONE_SHARE / totalETHXSupply;
     }
 
     /// 11. oETH
     /// @dev Retrieved from calling `sharesToUnderlying` on the oETH strategy
     /// @dev oETH is 1:1 with ETH and is a rebasing token
-    function get_oETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {        
+    function get_oETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         multiplier = strategy.sharesToUnderlying(ONE_SHARE);
     }
 
@@ -234,38 +236,38 @@ contract GetMultipliers is Test, Script {
     /// @dev Retrieved from calling `underlyingBalanceFromShares` on the lsETH token
     function get_lsETH_multiplier(IStrategy strategy) internal returns (uint256 multiplier) {
         IlsETH lsETH = IlsETH(address(strategy.underlyingToken()));
-        
+
         multiplier = lsETH.underlyingBalanceFromShares(ONE_SHARE);
     }
 
-    function _writeStrategiesToToml() internal {         
+    function _writeStrategiesToToml() internal {
         // Convert addresses to strings (using sortedStrategyAddresses which has IStrategy type)
         string[] memory strategyStrings = new string[](sortedStrategyAddresses.length);
         for (uint256 i = 0; i < sortedStrategyAddresses.length; i++) {
             strategyStrings[i] = vm.toString(address(sortedStrategyAddresses[i]));
         }
-        
+
         // Create the JSON structure
         string memory strategiesKey = "strategies";
         string memory strategiesJson = vm.serializeString(strategiesKey, "strategies", strategyStrings);
-        
+
         string memory multipliersKey = "multipliers";
         string memory multipliersJson = vm.serializeUint(multipliersKey, "multipliers", multipliers);
-        
+
         // Create root object with both sections
         string memory root = "root";
         vm.serializeString(root, "strategies", strategiesJson);
         string memory finalJson = vm.serializeString(root, "multipliers", multipliersJson);
-        
+
         // Write to mainnet.toml
         vm.writeToml(finalJson, "script/mainnet.toml");
-        
+
         console.log("Successfully wrote strategies and multipliers to mainnet.toml");
     }
 
     function _parseZeus() internal {
         strategyAddresses = new uint256[](Env.strategyBaseTVLLimits_Count(Env.instance));
-        for (uint i; i < strategyAddresses.length; ++i) {
+        for (uint256 i; i < strategyAddresses.length; ++i) {
             strategyAddresses[i] = uint256(uint160(address(Env.strategyBaseTVLLimits(Env.instance, i))));
         }
     }
@@ -305,7 +307,9 @@ interface ISfrxETH {
 }
 
 interface IETHx {
-    function exchangeRate() external returns (uint256 reportingBlockNumber, uint256 totalETHBalance, uint256 totalETHXSupply);
+    function exchangeRate()
+        external
+        returns (uint256 reportingBlockNumber, uint256 totalETHBalance, uint256 totalETHXSupply);
 }
 
 interface IlsETH {

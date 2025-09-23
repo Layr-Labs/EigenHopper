@@ -7,7 +7,7 @@ import "test/utils/DayTimeLib.sol";
 library TimeUtils {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
-    function assertEq(uint256 timestamp, string memory dayTimeString) internal {
+    function assertEq(uint256 timestamp, string memory dayTimeString) internal pure {
         vm.assertEq(toDayTimeString(timestamp), dayTimeString);
     }
 
