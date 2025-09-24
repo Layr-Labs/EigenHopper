@@ -79,17 +79,19 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     IEigen eigen;
     IBackingEigen beigen;
 
+    // Thu Oct 09 2025 00:00:00 GMT+0000 = 1759968000
+    // Thu Oct 16 2025 00:00:00 GMT+0000 = 1729036800
+    uint256 oct9th2025 = 1759968000;
+    uint256 oct16th2025 = 1760572800;
+    uint256 totalSupplyBefore;
+
     function _testFirstPress() internal {
         // Store addresses (so we don't get stack too deep)
         tokenHopper = TokenHopper(ZEnvHelpers.state().envAddress("tokenHopper"));
         rewardsCoordinator = Env.proxy.rewardsCoordinator();
         eigen = Env.proxy.eigen();
         beigen = Env.proxy.beigen();
-
-        // Thu Oct 09 2025 00:00:00 GMT+0000 = 1759968000
-        // Thu Oct 16 2025 00:00:00 GMT+0000 = 1729036800
-        uint256 oct9th2025 = 1759968000;
-        uint256 oct16th2025 = 1760572800;
+        totalSupplyBefore = eigen.totalSupply();
 
         // Verify timestamps using TimeUtils
         TimeUtils.assertEq(oct9th2025, "Thu Oct 09 2025 00:00:00 GMT+0000");
@@ -203,7 +205,21 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     }
 
     function _testMultiplePresses() internal {
-        // TODO: should log all dates so we can double check the dates of the reward submission
+        vm.warp(oct16th2025);
+
+        for (uint256 i = 0; i < 51; ++i) {
+            tokenHopper.pressButton();
+            vm.warp(block.timestamp + 1 weeks);
+        }
+
+        uint256 expectedGrowth = EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION + EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION;
+        uint256 totalSupplyAfter = Env.proxy.eigen().totalSupply();
+        assertApproxEqRel(
+            totalSupplyAfter,
+            totalSupplyBefore * (1 ether + expectedGrowth) / 1 ether,
+            0.001 ether, // 0.1%
+            "totalSupplyAfter is not correct (using expectedGrowth)"
+        );
     }
 
     /// @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
