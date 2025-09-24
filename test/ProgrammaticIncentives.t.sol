@@ -4,7 +4,10 @@ pragma solidity ^0.8.12;
 import "forge-std/Test.sol";
 
 import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {
+    TransparentUpgradeableProxy,
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
 import {IBackingEigen} from "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
 import {IEigen} from "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
