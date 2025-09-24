@@ -3,23 +3,32 @@ pragma solidity ^0.8.12;
 
 import "forge-std/Test.sol";
 
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {TransparentUpgradeableProxy, ITransparentUpgradeableProxy} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
-import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
+import {IBackingEigen} from "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
+import {IEigen} from "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
 
-import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
+import {
+    RewardsCoordinator,
+    IRewardsCoordinator,
+    IRewardsCoordinatorTypes,
+    IPauserRegistry,
+    IPermissionController,
+    IAllocationManager,
+    IDelegationManager,
+    IStrategyManager,
+    IStrategy
+} from "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 
 import {DelegationManagerMock} from "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
-import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
-import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
+import {StrategyManagerMock} from "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
+import {EmptyContract} from "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
 
-import "src/TokenHopper.sol";
-import "src/RewardAllStakersActionGenerator.sol";
+import {TokenHopper, ITokenHopper, Ownable} from "src/TokenHopper.sol";
+import {RewardAllStakersActionGenerator, IHopperActionGenerator} from "src/RewardAllStakersActionGenerator.sol";
 
-import "./BytecodeConstants.sol";
+import {BytecodeConstants} from "./BytecodeConstants.sol";
 
 interface IMinting {
     function isMinter(address) external view returns (bool);
