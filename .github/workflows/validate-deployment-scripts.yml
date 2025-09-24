@@ -48,9 +48,8 @@ jobs:
           forge build --sizes
 
       - name: Validate Deployment Scripts
-        run: |          
-          # Set RPC URL for mainnet
-          RPC_URL="${{ secrets.RPC_MAINNET }}"
-
+        env:
+          RPC_URL: ${{ secrets.RPC_MAINNET }}
+        run: |
           # Zeus test deployment scripts
           zeus test script/deploy/init-deploy/*.s.sol --env mainnet --rpcUrl "$RPC_URL"
