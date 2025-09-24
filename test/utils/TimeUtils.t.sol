@@ -7,11 +7,17 @@ import "test/utils/DayTimeLib.sol";
 library TimeUtils {
     Vm private constant vm = Vm(address(uint160(uint256(keccak256("hevm cheat code")))));
 
+    /// @dev Format: Thu Jan 01 1970 00:00:00 GMT+0000
     function assertEq(uint256 timestamp, string memory dayTimeString) internal pure {
         vm.assertEq(toDayTimeString(timestamp), dayTimeString);
     }
 
-    /// @dev Format: Thu Aug 15 2024 00:00:00 GMT+0000
+    /// @dev Format: Mon, Tue, Wed, Thu, Fri, Sat, Sun
+    function assertWeekdayEq(uint256 timestamp, string memory weekday) internal pure {
+        vm.assertEq(weekdayString(timestamp), weekday);
+    }
+
+    /// @dev Format: Thu Jan 01 1970 00:00:00 GMT+0000
     /// The same format used by https://www.unixtimestamp.com/.
     function toDayTimeString(uint256 timestamp) internal pure returns (string memory) {
         (uint256 year, uint256 month, uint256 day, uint256 hour, uint256 minute, uint256 second) =

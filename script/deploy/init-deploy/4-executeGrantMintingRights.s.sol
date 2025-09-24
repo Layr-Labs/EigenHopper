@@ -207,9 +207,21 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     function _testMultiplePresses() internal {
         vm.warp(oct16th2025);
 
-        for (uint256 i = 0; i < 51; ++i) {
+        uint256 start = block.timestamp;
+        for (uint256 i = 0; i < 51 weeks; i += 1 weeks) {
+            uint256 currentTimestamp = start + i;
+
+            // Assert that button presses fall on Thursdays.
+            TimeUtils.assertWeekdayEq(currentTimestamp, "Thu");
+
+            // Assert that we cannot press the button right before.
+            vm.warp(currentTimestamp - 1 seconds);
+            vm.expectRevert("TokenHopper.pressButton: button currently unpressable.");
             tokenHopper.pressButton();
-            vm.warp(block.timestamp + 1 weeks);
+
+            // Assert that we can press the button at the expected time.
+            vm.warp(currentTimestamp);
+            tokenHopper.pressButton();
         }
 
         uint256 expectedGrowth = EXPECTED_YEARLY_EIGEN_STAKER_DISTRIBUTION + EXPECTED_YEARLY_ETH_STAKER_DISTRIBUTION;
