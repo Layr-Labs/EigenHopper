@@ -1,3 +1,5 @@
+# WARNING: Corresponding indexes must align and strategies must be sorted in ascending order.
+
 [multipliers]
 multipliers = [
     1103360184106275334,
