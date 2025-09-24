@@ -9,4 +9,10 @@ fs_permissions = [
 
 no_match_path = "script/deploy/**/*.sol"
 
+
+[fmt]
+ignore = [
+    "src/**/*.sol"
+]
+
 # See more config options https://github.com/foundry-rs/foundry/blob/master/crates/config/README.md#all-options

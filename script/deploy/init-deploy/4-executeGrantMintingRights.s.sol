@@ -12,6 +12,7 @@ import {TimelockController} from "@openzeppelin/contracts/governance/TimelockCon
 import {ITokenHopper, TokenHopper} from "src/TokenHopper.sol";
 import {IHopperActionGenerator} from "src/interfaces/IHopperActionGenerator.sol";
 import {TimeUtils} from "test/utils/TimeUtils.t.sol";
+
 contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     using Env for *;
     using Encode for *;
@@ -84,12 +85,12 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         rewardsCoordinator = Env.proxy.rewardsCoordinator();
         eigen = Env.proxy.eigen();
         beigen = Env.proxy.beigen();
-        
+
         // Thu Oct 09 2025 00:00:00 GMT+0000 = 1759968000
         // Thu Oct 16 2025 00:00:00 GMT+0000 = 1729036800
         uint256 oct9th2025 = 1759968000;
         uint256 oct16th2025 = 1760572800;
-        
+
         // Verify timestamps using TimeUtils
         TimeUtils.assertEq(oct9th2025, "Thu Oct 09 2025 00:00:00 GMT+0000");
         TimeUtils.assertEq(oct16th2025, "Thu Oct 16 2025 00:00:00 GMT+0000");
@@ -116,10 +117,14 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
             rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
         }
 
-        // Check that the rewards submission start and end time is correct. 
-        assertEq(rewardsSubmissions[0].startTimestamp, oct9th2025, "eigen rewards submission start timestamp is not correct");
+        // Check that the rewards submission start and end time is correct.
+        assertEq(
+            rewardsSubmissions[0].startTimestamp, oct9th2025, "eigen rewards submission start timestamp is not correct"
+        );
         assertEq(rewardsSubmissions[0].duration, 1 weeks, "eigen rewards submission duration is not correct");
-        assertEq(rewardsSubmissions[1].startTimestamp, oct9th2025, "eth rewards submission start timestamp is not correct");
+        assertEq(
+            rewardsSubmissions[1].startTimestamp, oct9th2025, "eth rewards submission start timestamp is not correct"
+        );
         assertEq(rewardsSubmissions[1].duration, 1 weeks, "eth rewards submission duration is not correct");
 
         // 3. Store the expected total amount of rewards to be distributed.
@@ -186,7 +191,6 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         assertEq(eigenTotalSupplyAfter, eigenTotalSupplyBefore + totalAmount);
         assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount);
 
-        
         // 7. Verify we cannot press again.
         assertFalse(tokenHopper.canPress(), "should not be able to immediately press button again");
         vm.expectRevert("TokenHopper.pressButton: button currently unpressable.");
