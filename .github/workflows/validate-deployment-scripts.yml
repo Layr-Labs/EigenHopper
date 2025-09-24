@@ -1,0 +1,83 @@
+name: Validate Deployment Scripts
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'script/**'
+      - '.github/workflows/validate-deployment-scripts.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+
+  test:
+    runs-on: ubuntu-latest
+    
+    steps:
+      - uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
+        with:
+          egress-policy: audit
+
+      # Check out repository with all submodules for complete codebase access.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+
+      - name: Install Zeus
+        run: npm install -g @layr-labs/zeus
+      
+        # Restore Forge cache
+      - name: Cache Forge Build
+        uses: actions/cache@5a3ec84eff668545956fd18022155c47e93e2684
+        with:
+          path: |
+            cache/
+            out/
+          key: ${{ runner.os }}-forge-${{ hashFiles('**/foundry.toml', '**/remappings.txt', 'src/**/*.sol', 'lib/**/*.sol') }}
+          restore-keys: |
+            ${{ runner.os }}-forge-
+
+      # Install the Foundry toolchain.
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de
+        with:
+          version: stable
+
+      # Run Forge's formatting checker to ensure consistent code style.
+      - name: "Forge Fmt"
+        run: |
+          forge fmt --check
+          FOUNDRY_PROFILE=test forge fmt --check
+        id: fmt
+
+      # Build the project and display contract sizes.
+      - name: Forge Build
+        run: |
+          forge --version
+          forge build --sizes
+
+      - name: Validate Deployment Scripts
+        run: |
+          # Find all .s.sol files under /script/deploy
+          DEPLOY_FILES=$(find script/deploy -type f -name "*.s.sol" 2>/dev/null || echo "")
+          
+          # Trim leading/trailing whitespace
+          FILES=$(echo "$DEPLOY_FILES" | xargs)
+          
+          # Exit with success if no files are found
+          if [ -z "$FILES" ]; then
+            echo "No .s.sol files found under script/deploy directory"
+            exit 0
+          fi
+          
+          # Set RPC URL for mainnet
+          RPC_URL="${{ secrets.RPC_MAINNET }}"
+          
+          # Run zeus test on each file with mainnet environment
+          for file in $FILES; do
+            echo "Testing $file in mainnet environment..."
+            zeus test --env mainnet --rpcUrl "$RPC_URL" "$file" 
+          done
