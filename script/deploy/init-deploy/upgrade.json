@@ -1,5 +1,5 @@
 {
-    "name": "TokenHopperDeploy",
+    "name": "PIV2",
     "from": ">=1.8.0",
     "to": "1.8.1",
     "phases": [
