@@ -150,6 +150,9 @@ contract Deploy is EOADeployer {
 
         // Verify strategies and multipliers match
         verifyStrategiesMatch(oldActionGen, actionGenerator);
+
+        // Verify multipliers are within bounds: [1e18, 1.25e18]
+        verifyMultipliersWithinBounds(actionGenerator);
     }
 
     function verifyStrategiesMatch(RewardAllStakersActionGenerator oldGen, RewardAllStakersActionGenerator newGen)
@@ -168,6 +171,19 @@ contract Deploy is EOADeployer {
             (IStrategy oldStrat,) = oldGen.strategiesAndMultipliers(1, i);
             (IStrategy newStrat,) = newGen.strategiesAndMultipliers(1, i);
             assertEq(address(oldStrat), address(newStrat), "ETH strategy mismatch");
+        }
+    }
+
+    function verifyMultipliersWithinBounds(RewardAllStakersActionGenerator gen) internal view {
+        // Eigen Strategy
+        (, uint96 eigenMult) = gen.strategiesAndMultipliers(0, 0);
+        assertGe(eigenMult, 1e18);
+
+        // ETH Strategies
+        for (uint256 i = 0; i < strategiesAndMultipliers[1].length; i++) {
+            (, uint96 mult) = gen.strategiesAndMultipliers(1, i);
+            assertGe(mult, 1e18);
+            assertLe(mult, 1.25e18);
         }
     }
 
