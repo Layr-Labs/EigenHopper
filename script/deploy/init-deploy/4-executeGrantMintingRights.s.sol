@@ -109,7 +109,7 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         uint256 beigenTotalSupplyBefore = beigen.totalSupply();
 
         // 2. Get the rewards submission configuration.
-        ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
+        // ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
         uint256 currentNonce = rewardsCoordinator.submissionNonce(address(tokenHopper));
         IRewardsCoordinatorTypes.RewardsSubmission[] memory rewardsSubmissions;
         {

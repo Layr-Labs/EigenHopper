@@ -17,6 +17,7 @@ contract Deploy is EOADeployer {
     using ZEnvHelpers for *;
 
     address internal constant OLD_TOKEN_HOPPER = 0x0ffC6AC10515EE0F83fEE71FCaf5Ea5805256563;
+    address internal constant OLD_ACTION_GENERATOR = 0x99E6a294349072F9873081Cde9AC9eeb7Fd1F9dE;
 
     /// -----------------------------------------------------------------------
     /// Deployment Parameters
@@ -60,7 +61,7 @@ contract Deploy is EOADeployer {
     uint256 internal constant STARTING_EIGEN_SUPPLY = 1750891899.128567384615384679 ether;
 
     /// -----------------------------------------------------------------------
-    ///
+    /// Storage
     /// -----------------------------------------------------------------------
 
     TokenHopper public tokenHopper;
@@ -74,6 +75,9 @@ contract Deploy is EOADeployer {
 
     function testDeploy() public virtual {
         _runAsEOA();
+
+        // Verify critical configs match old deployment
+        verifyConfigsMatch();
     }
 
     function constructArrays() internal {
@@ -122,6 +126,54 @@ contract Deploy is EOADeployer {
         assertNotEq(strategiesAndMultipliers[0].length, 0, "sanity");
         assertNotEq(strategiesAndMultipliers[1].length, 0, "sanity");
     }
+
+    function verifyConfigsMatch() internal view {
+        // Get old configs
+        ITokenHopper.HopperConfiguration memory oldHopperConfig =
+            ITokenHopper(OLD_TOKEN_HOPPER).getHopperConfiguration();
+        RewardAllStakersActionGenerator oldActionGen = RewardAllStakersActionGenerator(OLD_ACTION_GENERATOR);
+
+        // Get new configs
+        ITokenHopper.HopperConfiguration memory newHopperConfig = tokenHopper.getHopperConfiguration();
+
+        // Critical TokenHopper checks - these MUST match
+        assertEq(oldHopperConfig.token, newHopperConfig.token, "Token address must match");
+        assertEq(oldHopperConfig.cooldownSeconds, newHopperConfig.cooldownSeconds, "Cooldown must match");
+        assertEq(oldHopperConfig.doesExpire, newHopperConfig.doesExpire, "Expiry setting must match");
+
+        // Critical ActionGenerator checks - these MUST match
+        assertEq(
+            oldActionGen.rewardsCoordinator(), actionGenerator.rewardsCoordinator(), "RewardsCoordinator must match"
+        );
+        assertEq(address(oldActionGen.bEIGEN()), address(actionGenerator.bEIGEN()), "bEIGEN must match");
+        assertEq(address(oldActionGen.EIGEN()), address(actionGenerator.EIGEN()), "EIGEN must match");
+
+        // Verify strategies and multipliers match
+        verifyStrategiesMatch(oldActionGen, actionGenerator);
+    }
+
+    function verifyStrategiesMatch(RewardAllStakersActionGenerator oldGen, RewardAllStakersActionGenerator newGen)
+        internal
+        view
+    {
+        // Verify EIGEN stakers strategies (index 0)
+        assertEq(strategiesAndMultipliers[0].length, 1, "EIGEN strategies length");
+        (IStrategy oldEigenStrat, uint96 oldEigenMult) = oldGen.strategiesAndMultipliers(0, 0);
+        (IStrategy newEigenStrat, uint96 newEigenMult) = newGen.strategiesAndMultipliers(0, 0);
+        assertEq(address(oldEigenStrat), address(newEigenStrat), "EIGEN strategy mismatch");
+        assertEq(oldEigenMult, newEigenMult, "EIGEN multiplier mismatch");
+
+        // Verify ETH stakers strategies (index 1) - should match what's in mainnet.toml
+        for (uint256 i = 0; i < strategiesAndMultipliers[1].length; i++) {
+            (IStrategy oldStrat,) = oldGen.strategiesAndMultipliers(1, i);
+            (IStrategy newStrat,) = newGen.strategiesAndMultipliers(1, i);
+            assertEq(address(oldStrat), address(newStrat), "ETH strategy mismatch");
+        }
+    }
+
+    /// -----------------------------------------------------------------------
+    /// Deployment
+    /// -----------------------------------------------------------------------
 
     function deployContracts() internal {
         vm.startBroadcast();
