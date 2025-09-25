@@ -229,7 +229,7 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         assertApproxEqRel(
             totalSupplyAfter,
             totalSupplyBefore * (1 ether + expectedGrowth) / 1 ether,
-            0.001 ether, // 0.1%
+            0.0001 ether, // 0.01%
             "totalSupplyAfter is not correct (using expectedGrowth)"
         );
     }
