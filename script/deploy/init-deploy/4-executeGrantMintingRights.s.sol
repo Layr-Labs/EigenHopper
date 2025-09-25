@@ -157,7 +157,7 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         emit Approval(address(tokenHopper), address(rewardsCoordinator), totalAmount);
         // events for RewardsCoordinator performing the transfers
         uint256 remainingAllowance = totalAmount;
-        for (uint256 i = 0; i < 1; ++i) {
+        for (uint256 i = 0; i < 2; ++i) {
             IRewardsCoordinatorTypes.RewardsSubmission memory rewardsSubmission = rewardsSubmissions[i];
 
             bytes32 rewardsSubmissionHash = keccak256(abi.encode(tokenHopper, currentNonce, rewardsSubmission));
