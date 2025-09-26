@@ -2,6 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {Deploy} from "./1-eoa.s.sol";
+import {HopperEnv} from "script/HopperEnv.sol";
 
 import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
 import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
@@ -11,6 +12,7 @@ import {Encode, MultisigCall} from "eigenlayer-contracts/lib/zeus-templates/src/
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
 
 contract QueueGrantMintingRights is MultisigBuilder, Deploy {
+    using HopperEnv for *;
     using Env for *;
     using Encode for *;
     using ZEnvHelpers for *;
@@ -33,7 +35,7 @@ contract QueueGrantMintingRights is MultisigBuilder, Deploy {
     function _getCalldataToExecutor_queueChanges() internal virtual returns (bytes memory) {
         MultisigCall[] storage executorCalls = Encode.newMultisigCalls().append({
             to: address(Env.proxy.beigen()),
-            data: abi.encodeWithSignature("setIsMinter(address,bool)", ZEnvHelpers.state().envAddress("tokenHopper"), true)
+            data: abi.encodeWithSignature("setIsMinter(address,bool)", address(HopperEnv.impl.tokenHopper()), true)
         }).append({
             to: address(Env.proxy.beigen()),
             data: abi.encodeWithSignature("setIsMinter(address,bool)", OLD_TOKEN_HOPPER, false)

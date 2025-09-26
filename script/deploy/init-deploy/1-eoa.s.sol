@@ -2,6 +2,7 @@
 pragma solidity ^0.8.12;
 
 import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
+import {HopperEnv} from "script/HopperEnv.sol";
 import {EOADeployer} from "eigenlayer-contracts/lib/zeus-templates/src/templates/EOADeployer.sol";
 import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
 import {
@@ -13,6 +14,7 @@ import {RewardAllStakersActionGenerator} from "src/RewardAllStakersActionGenerat
 import {TimeUtils} from "test/utils/TimeUtils.t.sol";
 
 contract Deploy is EOADeployer {
+    using HopperEnv for *;
     using Env for *;
     using ZEnvHelpers for *;
 
@@ -63,9 +65,6 @@ contract Deploy is EOADeployer {
     /// -----------------------------------------------------------------------
     /// Storage
     /// -----------------------------------------------------------------------
-
-    TokenHopper public tokenHopper;
-    RewardAllStakersActionGenerator public actionGenerator;
     IRewardsCoordinatorTypes.StrategyAndMultiplier[][2] public strategiesAndMultipliers;
 
     function _runAsEOA() internal override {
@@ -128,6 +127,10 @@ contract Deploy is EOADeployer {
     }
 
     function verifyConfigsMatch() internal view {
+        // Store tokenHopper and actionGenerator addresses
+        TokenHopper tokenHopper = HopperEnv.impl.tokenHopper();
+        RewardAllStakersActionGenerator actionGenerator = HopperEnv.impl.actionGenerator();
+
         // Get old configs
         ITokenHopper.HopperConfiguration memory oldHopperConfig =
             ITokenHopper(OLD_TOKEN_HOPPER).getHopperConfiguration();
@@ -195,32 +198,38 @@ contract Deploy is EOADeployer {
         vm.startBroadcast();
 
         // 1) Deploy `RewardAllStakersActionGenerator`.
-        actionGenerator = new RewardAllStakersActionGenerator({
-            _rewardsCoordinator: address(Env.proxy.rewardsCoordinator()),
-            _firstSubmissionStartTimestamp: FIRST_SUBMISSION_START_TIMESTAMP,
-            _firstSubmissionTriggerCutoff: FIRST_SUBMISSION_TRIGGER_CUTOFF,
-            _amounts: [EIGEN_STAKERS_WEEKLY_DISTRIBUTION, ETH_STAKERS_WEEKLY_DISTRIBUTION],
-            _strategiesAndMultipliers: strategiesAndMultipliers,
-            _bEIGEN: Env.proxy.beigen(),
-            _EIGEN: Env.proxy.eigen()
+        deployImpl({
+            name: type(RewardAllStakersActionGenerator).name,
+            deployedTo: address(
+                new RewardAllStakersActionGenerator({
+                    _rewardsCoordinator: address(Env.proxy.rewardsCoordinator()),
+                    _firstSubmissionStartTimestamp: FIRST_SUBMISSION_START_TIMESTAMP,
+                    _firstSubmissionTriggerCutoff: FIRST_SUBMISSION_TRIGGER_CUTOFF,
+                    _amounts: [EIGEN_STAKERS_WEEKLY_DISTRIBUTION, ETH_STAKERS_WEEKLY_DISTRIBUTION],
+                    _strategiesAndMultipliers: strategiesAndMultipliers,
+                    _bEIGEN: Env.proxy.beigen(),
+                    _EIGEN: Env.proxy.eigen()
+                })
+            )
         });
 
         // 2) Deploy `TokenHopper`.
-        tokenHopper = new TokenHopper({
-            config: ITokenHopper.HopperConfiguration({
-                token: address(Env.proxy.eigen()),
-                startTime: FIRST_SUBMISSION_START_TIMESTAMP,
-                cooldownSeconds: 1 weeks,
-                actionGenerator: address(actionGenerator),
-                doesExpire: false,
-                expirationTimestamp: type(uint256).max
-            }),
-            initialOwner: address(0) // No rights are conferred to owner (since hopper is non-expiring).
+        deployImpl({
+            name: type(TokenHopper).name,
+            deployedTo: address(
+                new TokenHopper({
+                    config: ITokenHopper.HopperConfiguration({
+                        token: address(Env.proxy.eigen()),
+                        startTime: FIRST_SUBMISSION_START_TIMESTAMP,
+                        cooldownSeconds: 1 weeks,
+                        actionGenerator: address(HopperEnv.impl.actionGenerator()),
+                        doesExpire: false,
+                        expirationTimestamp: type(uint256).max
+                    }),
+                    initialOwner: address(0)
+                })
+            )
         });
-
-        // 3) Update enviorment variables for `actionGenerator` and `tokenHopper`.
-        zUpdate("actionGenerator", address(actionGenerator));
-        zUpdate("tokenHopper", address(tokenHopper));
 
         vm.stopBroadcast();
     }

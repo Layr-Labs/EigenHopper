@@ -9,11 +9,14 @@ import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEn
 import {Encode} from "eigenlayer-contracts/lib/zeus-templates/src/utils/Encode.sol";
 
 import {TimelockController} from "@openzeppelin/contracts/governance/TimelockController.sol";
+import {HopperEnv} from "script/HopperEnv.sol";
 import {ITokenHopper, TokenHopper} from "src/TokenHopper.sol";
+import {RewardAllStakersActionGenerator} from "src/RewardAllStakersActionGenerator.sol";
 import {IHopperActionGenerator} from "src/interfaces/IHopperActionGenerator.sol";
 import {TimeUtils} from "test/utils/TimeUtils.t.sol";
 
 contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
+    using HopperEnv for *;
     using Env for *;
     using Encode for *;
     using ZEnvHelpers for *;
@@ -53,7 +56,7 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
 
         // Validate that the token hopper has minting permissions.
         assertTrue(
-            IBackingEigen2(address(Env.proxy.beigen())).isMinter(ZEnvHelpers.state().envAddress("tokenHopper")),
+            IBackingEigen2(address(Env.proxy.beigen())).isMinter(address(HopperEnv.impl.tokenHopper())),
             "new token hopper should have minting rights"
         );
 
@@ -75,6 +78,8 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
     }
 
     // Addresses so we don't get stack too deep
+    TokenHopper tokenHopper;
+    RewardAllStakersActionGenerator actionGenerator;
     RewardsCoordinator rewardsCoordinator;
     IEigen eigen;
     IBackingEigen beigen;
@@ -87,7 +92,8 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
 
     function _testFirstPress() internal {
         // Store addresses (so we don't get stack too deep)
-        tokenHopper = TokenHopper(ZEnvHelpers.state().envAddress("tokenHopper"));
+        tokenHopper = HopperEnv.impl.tokenHopper();
+        actionGenerator = HopperEnv.impl.actionGenerator();
         rewardsCoordinator = Env.proxy.rewardsCoordinator();
         eigen = Env.proxy.eigen();
         beigen = Env.proxy.beigen();

@@ -2,15 +2,17 @@
 pragma solidity ^0.8.12;
 
 import {QueueGrantMintingRights} from "./2-queueGrantMintingRights.s.sol";
+import {HopperEnv} from "script/HopperEnv.sol";
 import {Env} from "eigenlayer-contracts/script/releases/Env.sol";
 import {ZEnvHelpers} from "eigenlayer-contracts/lib/zeus-templates/src/utils/ZEnvHelpers.sol";
 
 contract SetRewardsPermission is QueueGrantMintingRights {
+    using HopperEnv for *;
     using Env for *;
     using ZEnvHelpers for *;
 
     function _runAsMultisig() internal virtual override prank(Env.opsMultisig()) {
-        Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(_tokenHopper(), true);
+        Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(address(HopperEnv.impl.tokenHopper()), true);
         Env.proxy.rewardsCoordinator().setRewardsForAllSubmitter(OLD_TOKEN_HOPPER, false);
     }
 
@@ -20,7 +22,7 @@ contract SetRewardsPermission is QueueGrantMintingRights {
 
         // Validate that the token hopper has the permission
         assertTrue(
-            Env.proxy.rewardsCoordinator().isRewardsForAllSubmitter(_tokenHopper()),
+            Env.proxy.rewardsCoordinator().isRewardsForAllSubmitter(address(HopperEnv.impl.tokenHopper())),
             "token hopper does not have requisite permission on rewardsCoordinator"
         );
 
@@ -28,10 +30,5 @@ contract SetRewardsPermission is QueueGrantMintingRights {
             Env.proxy.rewardsCoordinator().isRewardsForAllSubmitter(OLD_TOKEN_HOPPER),
             "old token hopper still has permission on rewardsCoordinator"
         );
-    }
-
-    /// @dev Internal helper to improve readability.
-    function _tokenHopper() internal view returns (address) {
-        return ZEnvHelpers.state().envAddress("tokenHopper");
     }
 }
