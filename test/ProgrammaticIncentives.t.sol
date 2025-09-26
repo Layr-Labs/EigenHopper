@@ -3,23 +3,35 @@ pragma solidity ^0.8.12;
 
 import "forge-std/Test.sol";
 
-import "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
-import "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
+import {ProxyAdmin} from "@openzeppelin/contracts/proxy/transparent/ProxyAdmin.sol";
+import {
+    TransparentUpgradeableProxy,
+    ITransparentUpgradeableProxy
+} from "@openzeppelin/contracts/proxy/transparent/TransparentUpgradeableProxy.sol";
 
-import "eigenlayer-contracts/src/contracts/interfaces/IRewardsCoordinator.sol";
-import "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
-import "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
+import {IBackingEigen} from "eigenlayer-contracts/src/contracts/interfaces/IBackingEigen.sol";
+import {IEigen} from "eigenlayer-contracts/src/contracts/interfaces/IEigen.sol";
 
-import "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
+import {
+    RewardsCoordinator,
+    IRewardsCoordinator,
+    IRewardsCoordinatorTypes,
+    IPauserRegistry,
+    IPermissionController,
+    IAllocationManager,
+    IDelegationManager,
+    IStrategyManager,
+    IStrategy
+} from "eigenlayer-contracts/src/contracts/core/RewardsCoordinator.sol";
 
 import {DelegationManagerMock} from "eigenlayer-contracts/src/test/mocks/DelegationManagerMock.sol";
-import "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
-import "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
+import {StrategyManagerMock} from "eigenlayer-contracts/src/test/mocks/StrategyManagerMock.sol";
+import {EmptyContract} from "eigenlayer-contracts/src/test/mocks/EmptyContract.sol";
 
-import "src/TokenHopper.sol";
-import "src/RewardAllStakersActionGenerator.sol";
+import {TokenHopper, ITokenHopper, Ownable} from "src/TokenHopper.sol";
+import {RewardAllStakersActionGenerator, IHopperActionGenerator} from "src/RewardAllStakersActionGenerator.sol";
 
-import "./BytecodeConstants.sol";
+import {BytecodeConstants} from "./BytecodeConstants.sol";
 
 interface IMinting {
     function isMinter(address) external view returns (bool);
@@ -111,21 +123,22 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         // deploy proxies
         eigen = IEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-        beigen = IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
-        rewardsCoordinator = RewardsCoordinator(address(
-            new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        beigen =
+            IBackingEigen(address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), "")));
+        rewardsCoordinator = RewardsCoordinator(
+            address(new TransparentUpgradeableProxy(address(emptyContract), address(proxyAdmin), ""))
+        );
 
         // deploy mocks
         delegationManagerMock = new DelegationManagerMock();
         strategyManagerMock = new StrategyManagerMock(IDelegationManager(address(delegationManagerMock)));
 
         // deploy implementations
-        beigenImpl = IBackingEigen(deployContractFromBytecode(
-            abi.encodePacked(beigenCreationBytecode, abi.encode(address(eigen)))
-        ));
-        eigenImpl = IEigen(deployContractFromBytecode(
-            abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))
-        ));
+        beigenImpl = IBackingEigen(
+            deployContractFromBytecode(abi.encodePacked(beigenCreationBytecode, abi.encode(address(eigen))))
+        );
+        eigenImpl =
+            IEigen(deployContractFromBytecode(abi.encodePacked(eigenCreationBytecode, abi.encode(address(beigen)))));
         // deployed using mainnet values -- see https://etherscan.io/address/0x7750d328b314effa365a0402ccfd489b80b0adda
         rewardsCoordinatorImpl = new RewardsCoordinator({
             _delegationManager: IDelegationManager(address(delegationManagerMock)),
@@ -134,7 +147,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             _pauserRegistry: IPauserRegistry(address(1)),
             _permissionController: IPermissionController(address(1)),
             _CALCULATION_INTERVAL_SECONDS: 1 weeks,
-            _MAX_REWARDS_DURATION: 10 weeks, 
+            _MAX_REWARDS_DURATION: 10 weeks,
             _MAX_RETROACTIVE_LENGTH: 24 weeks,
             _MAX_FUTURE_LENGTH: 30 days,
             _GENESIS_REWARDS_TIMESTAMP: GENESIS_REWARDS_TIMESTAMP
@@ -143,19 +156,19 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         // upgrade proxies
         proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(eigen))), address(eigenImpl));
         proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(beigen))), address(beigenImpl));
-        proxyAdmin.upgrade(ITransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl));
+        proxyAdmin.upgrade(
+            ITransparentUpgradeableProxy(payable(address(rewardsCoordinator))), address(rewardsCoordinatorImpl)
+        );
 
         // deploy ActionGenerator & Hopper
         _amounts[0] = 100;
         _amounts[1] = 200;
-        _strategiesAndMultipliers[0].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
-            strategy: IStrategy(address(eigen)),
-            multiplier: 1e18
-        }));
-        _strategiesAndMultipliers[1].push(IRewardsCoordinatorTypes.StrategyAndMultiplier({
-            strategy: IStrategy(address(eigen)),
-            multiplier: 1e18
-        }));
+        _strategiesAndMultipliers[0].push(
+            IRewardsCoordinatorTypes.StrategyAndMultiplier({strategy: IStrategy(address(eigen)), multiplier: 1e18})
+        );
+        _strategiesAndMultipliers[1].push(
+            IRewardsCoordinatorTypes.StrategyAndMultiplier({strategy: IStrategy(address(eigen)), multiplier: 1e18})
+        );
         actionGenerator = new RewardAllStakersActionGenerator({
             _rewardsCoordinator: address(rewardsCoordinator),
             _firstSubmissionStartTimestamp: _firstSubmissionStartTimestamp,
@@ -172,12 +185,9 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             cooldownSeconds: 1 weeks,
             actionGenerator: address(actionGenerator),
             doesExpire: true,
-            expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks 
+            expirationTimestamp: _firstSubmissionStartTimestamp + 24 weeks
         });
-        tokenHopper = new TokenHopper({
-            config: hopperConfiguration,
-            initialOwner: initialOwner
-        });
+        tokenHopper = new TokenHopper({config: hopperConfiguration, initialOwner: initialOwner});
         cheats.warp(_firstSubmissionStartTimestamp + 1 weeks);
 
         // initialize contracts
@@ -185,19 +195,22 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         minters.push(initialOwner);
         mintingAllowances.push(INITIAL_EIGEN_SUPPLY);
         mintAllowedAfters.push(0);
-        (bool success, /*bytes returndata*/) = address(eigen).call(abi.encodeWithSignature(
-            "initialize(address,address[],uint256[],uint256[])",
-            initialOwner,
-            minters,
-            mintingAllowances,
-            mintAllowedAfters
-        ));
+        (bool success, /*bytes returndata*/ ) = address(eigen).call(
+            abi.encodeWithSignature(
+                "initialize(address,address[],uint256[],uint256[])",
+                initialOwner,
+                minters,
+                mintingAllowances,
+                mintAllowedAfters
+            )
+        );
         require(success, "eigen initialization failed");
         eigen.mint();
         eigen.disableTransferRestrictions();
 
         // initialize beigen
-        (success, /*bytes returndata*/) = address(beigen).call(abi.encodeWithSignature("initialize(address)", initialOwner));
+        (success, /*bytes returndata*/ ) =
+            address(beigen).call(abi.encodeWithSignature("initialize(address)", initialOwner));
         require(success, "beigen initialization failed");
         beigen.disableTransferRestrictions();
         beigen.setIsMinter(address(tokenHopper), true);
@@ -231,10 +244,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             IHopperActionGenerator.HopperAction[] memory actions =
                 actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
             bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-            rewardsSubmissions = abi.decode(
-                rewardsSubmissionsRaw,
-                (IRewardsCoordinatorTypes.RewardsSubmission[])
-            );
+            rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
         }
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
@@ -280,14 +290,13 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             // transferring into RewardsCoordinator
             cheats.expectEmit(true, true, true, true, address(eigen));
             emit Transfer(address(tokenHopper), address(rewardsCoordinator), rewardsSubmission.amount);
-           currentNonce++;
+            currentNonce++;
         }
 
         // event for pressing button
         cheats.expectEmit(true, true, true, true, address(tokenHopper));
-        uint256 newCooldownHorizon =
-            ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1) * configuration.cooldownSeconds
-            + configuration.startTime;
+        uint256 newCooldownHorizon = ((block.timestamp - configuration.startTime) / configuration.cooldownSeconds + 1)
+            * configuration.cooldownSeconds + configuration.startTime;
         emit ButtonPressed(address(this), newCooldownHorizon);
 
         tokenHopper.pressButton();
@@ -296,15 +305,23 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         uint256 eigenTotalSupplyAfter = eigen.totalSupply();
         uint256 beigenTotalSupplyAfter = beigen.totalSupply();
 
-        assertEq(rewardsCoordinatorEigenBalanceAfter, rewardsCoordinatorEigenBalanceBefore + totalAmount,
-            "rewardsCoordinator did not receive expected amount of EIGEN tokens");
-        assertEq(eigenTotalSupplyAfter, eigenTotalSupplyBefore + totalAmount,
-            "EIGEN totalSupply did not increase as expected");
-        assertEq(beigenTotalSupplyAfter, beigenTotalSupplyBefore + totalAmount,
-            "bEIGEN totalSupply did not increase as expected");
+        assertEq(
+            rewardsCoordinatorEigenBalanceAfter,
+            rewardsCoordinatorEigenBalanceBefore + totalAmount,
+            "rewardsCoordinator did not receive expected amount of EIGEN tokens"
+        );
+        assertEq(
+            eigenTotalSupplyAfter,
+            eigenTotalSupplyBefore + totalAmount,
+            "EIGEN totalSupply did not increase as expected"
+        );
+        assertEq(
+            beigenTotalSupplyAfter,
+            beigenTotalSupplyBefore + totalAmount,
+            "bEIGEN totalSupply did not increase as expected"
+        );
         require(!tokenHopper.canPress(), "should not be able to immediately press button again");
-        assertEq(tokenHopper.latestPress(), block.timestamp,
-            "latestPress not set correctly");
+        assertEq(tokenHopper.latestPress(), block.timestamp, "latestPress not set correctly");
     }
 
     function test_pressButton_MultipleCycles() public {
@@ -313,10 +330,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         IHopperActionGenerator.HopperAction[] memory actions =
             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-        rewardsSubmissions = abi.decode(
-            rewardsSubmissionsRaw,
-            (IRewardsCoordinatorTypes.RewardsSubmission[])
-        );
+        rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
             totalAmount += rewardsSubmissions[i].amount;
@@ -329,7 +343,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
         uint256 multiplier;
         if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
-            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+            multiplier =
+                (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
         } else {
             multiplier = 1;
         }
@@ -338,16 +353,22 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
-                "amount in rewardsSubmission is not multiplied correctly");
+            assertEq(
+                rewardsSubmissions[i].amount,
+                _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly"
+            );
         }
         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-        require(endOfFirstSubmission > block.timestamp,
-            "endOfFirstSubmission should be after the present time");
-        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
-            "endOfFirstSubmission should be at or before one week in future");
-        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
-            "array entries have different ends");
+        require(endOfFirstSubmission > block.timestamp, "endOfFirstSubmission should be after the present time");
+        require(
+            endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future"
+        );
+        require(
+            endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends"
+        );
 
         // test first press
         test_pressButton();
@@ -356,10 +377,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         cheats.warp(block.timestamp + 7 days);
         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-        rewardsSubmissions = abi.decode(
-            rewardsSubmissionsRaw,
-            (IRewardsCoordinatorTypes.RewardsSubmission[])
-        );
+        rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
 
         totalAmount = 0;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
@@ -374,12 +392,19 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
         }
 
-        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
-            "end of first submission and start of second should align");
-        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
-            "array entries have different starts");
-        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
-            "array entries have different durations");
+        assertEq(
+            endOfFirstSubmission,
+            rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align"
+        );
+        assertEq(
+            rewardsSubmissions[0].startTimestamp,
+            rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts"
+        );
+        assertEq(
+            rewardsSubmissions[0].duration, rewardsSubmissions[1].duration, "array entries have different durations"
+        );
 
         // test second press
         test_pressButton();
@@ -391,10 +416,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         IHopperActionGenerator.HopperAction[] memory actions =
             actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         bytes memory rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-        rewardsSubmissions = abi.decode(
-            rewardsSubmissionsRaw,
-            (IRewardsCoordinatorTypes.RewardsSubmission[])
-        );
+        rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
         uint256 totalAmount;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
             totalAmount += rewardsSubmissions[i].amount;
@@ -407,7 +429,8 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         ITokenHopper.HopperConfiguration memory configuration = tokenHopper.getHopperConfiguration();
         uint256 multiplier;
         if (block.timestamp < actionGenerator.firstSubmissionTriggerCutoff()) {
-            multiplier = (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
+            multiplier =
+                (block.timestamp - actionGenerator.firstSubmissionStartTimestamp()) / configuration.cooldownSeconds + 1;
         } else {
             multiplier = 1;
         }
@@ -417,16 +440,22 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
 
         assertEq(totalAmount, expectedTotalAmount, "totalAmount != expectedTotalAmount");
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
-            assertEq(rewardsSubmissions[i].amount, _amounts[i] * multiplier,
-                "amount in rewardsSubmission is not multiplied correctly");
+            assertEq(
+                rewardsSubmissions[i].amount,
+                _amounts[i] * multiplier,
+                "amount in rewardsSubmission is not multiplied correctly"
+            );
         }
         uint256 endOfFirstSubmission = rewardsSubmissions[0].startTimestamp + rewardsSubmissions[0].duration;
-        require(endOfFirstSubmission > block.timestamp,
-            "endOfFirstSubmission should be after the present time");
-        require(endOfFirstSubmission <= block.timestamp + 1 weeks,
-            "endOfFirstSubmission should be at or before one week in future");
-        require(endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
-            "array entries have different ends");
+        require(endOfFirstSubmission > block.timestamp, "endOfFirstSubmission should be after the present time");
+        require(
+            endOfFirstSubmission <= block.timestamp + 1 weeks,
+            "endOfFirstSubmission should be at or before one week in future"
+        );
+        require(
+            endOfFirstSubmission == rewardsSubmissions[1].startTimestamp + rewardsSubmissions[1].duration,
+            "array entries have different ends"
+        );
 
         // test first press
         test_pressButton();
@@ -435,10 +464,7 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
         cheats.warp(actionGenerator.firstSubmissionTriggerCutoff());
         actions = actionGenerator.generateHopperActions(address(tokenHopper), address(eigen));
         rewardsSubmissionsRaw = this.sliceOffLeadingFourBytes(actions[4].callData);
-        rewardsSubmissions = abi.decode(
-            rewardsSubmissionsRaw,
-            (IRewardsCoordinatorTypes.RewardsSubmission[])
-        );
+        rewardsSubmissions = abi.decode(rewardsSubmissionsRaw, (IRewardsCoordinatorTypes.RewardsSubmission[]));
 
         totalAmount = 0;
         for (uint256 i = 0; i < rewardsSubmissions.length; ++i) {
@@ -453,12 +479,19 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
             assertEq(rewardsSubmissions[i].amount, _amounts[i], "amount in rewardsSubmission is not correct");
         }
 
-        assertEq(endOfFirstSubmission, rewardsSubmissions[0].startTimestamp,
-            "end of first submission and start of second should align");
-        assertEq(rewardsSubmissions[0].startTimestamp, rewardsSubmissions[1].startTimestamp,
-            "array entries have different starts");
-        assertEq(rewardsSubmissions[0].duration, rewardsSubmissions[1].duration,
-            "array entries have different durations");
+        assertEq(
+            endOfFirstSubmission,
+            rewardsSubmissions[0].startTimestamp,
+            "end of first submission and start of second should align"
+        );
+        assertEq(
+            rewardsSubmissions[0].startTimestamp,
+            rewardsSubmissions[1].startTimestamp,
+            "array entries have different starts"
+        );
+        assertEq(
+            rewardsSubmissions[0].duration, rewardsSubmissions[1].duration, "array entries have different durations"
+        );
 
         // test second press
         test_pressButton();
@@ -467,20 +500,5 @@ contract ProgrammaticIncentivesTests is BytecodeConstants, Test {
     // @notice returns the `bytestring` with its first four bytes removed. used to slice off function sig
     function sliceOffLeadingFourBytes(bytes calldata bytestring) public pure returns (bytes memory) {
         return bytestring[4:];
-    }
-
-    /// @dev Sort to ensure that the array is in ascending order for strategies
-    function _sortArrayAsc(address[] memory arr) internal pure returns (address[] memory) {
-        uint256 l = arr.length;
-        for (uint256 i = 0; i < l; i++) {
-            for (uint256 j = i + 1; j < l; j++) {
-                if (address(arr[i]) > address(arr[j])) {
-                    address temp = arr[i];
-                    arr[i] = arr[j];
-                    arr[j] = temp;
-                }
-            }
-        }
-        return arr;
     }
 }

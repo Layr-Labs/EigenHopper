@@ -1,0 +1,60 @@
+name: Test Suite
+
+on:
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - 'script/**'
+      - '.github/workflows/validate-deployment-scripts.yml'
+
+permissions:
+  contents: read
+  pull-requests: read
+
+jobs:
+  test:
+    name: "Foundry/Zeus Tests"
+    runs-on: ubuntu-latest
+    steps:
+      - uses: step-security/harden-runner@ec9f2d5744a09debf3a187a3f4f675c53b671911
+        with:
+          egress-policy: audit
+
+      # Check out repository with all submodules for complete codebase access.
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+        with:
+          submodules: recursive
+
+      - name: Install Zeus
+        run: npm install -g @layr-labs/zeus
+
+      # Install the Foundry toolchain.
+      - name: Install Foundry
+        uses: foundry-rs/foundry-toolchain@82dee4ba654bd2146511f85f0d013af94670c4de
+        with:
+          version: stable
+
+      # Run Forge's formatting checker to ensure consistent code style.
+      - name: "Forge Fmt"
+        run: |
+          forge fmt --check
+        id: fmt
+
+      # Build the project and display contract sizes.
+      - name: "Forge Build"
+        run: |
+          forge --version
+          forge build --sizes
+
+      # Run Forge tests
+      - name: "Run Forge Tests"
+        run: |
+          forge test -vvv
+        id: test
+
+      - name: "Run Zeus Tests"
+        env:
+          RPC_URL: ${{ secrets.RPC_MAINNET }}
+        run: |
+          # Zeus test deployment scripts
+          zeus test script/deploy/init-deploy/*.s.sol --env mainnet --rpcUrl "$RPC_URL"

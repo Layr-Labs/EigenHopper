@@ -56,7 +56,7 @@ contract RewardAllStakersActionGenerator is IHopperActionGenerator {
             "RewardAllStakersActionGenerator: bEIGEN cannot be zero address");
         require(address(_EIGEN) != address(0),
             "RewardAllStakersActionGenerator: EIGEN cannot be zero address");
-        CALCULATION_INTERVAL_SECONDS = IRewardsCoordinator(_rewardsCoordinator).CALCULATION_INTERVAL_SECONDS();
+        CALCULATION_INTERVAL_SECONDS = 1 weeks;
         // RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS
         require(_firstSubmissionStartTimestamp % CALCULATION_INTERVAL_SECONDS == 0,
             "RewardAllStakersActionGenerator: RewardsSubmissions must start at a multiple of CALCULATION_INTERVAL_SECONDS");
