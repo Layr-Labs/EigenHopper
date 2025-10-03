@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: BUSL-1.1
 pragma solidity ^0.8.12;
 
-import {SetRewardsPermission} from "./3-setRewardsPermission.s.sol";
+import {SetRewardsPermissionPt1} from "./3-setRewardsPermissionPt1.s.sol";
+import {SetRewardsPermissionPt2} from "./4-setRewardsPermissionPt2.s.sol";
 import {QueueGrantMintingRights} from "./2-queueGrantMintingRights.s.sol";
 
 import "eigenlayer-contracts/script/releases/Env.sol";
@@ -15,7 +16,7 @@ import {RewardAllStakersActionGenerator} from "src/RewardAllStakersActionGenerat
 import {IHopperActionGenerator} from "src/interfaces/IHopperActionGenerator.sol";
 import {TimeUtils} from "test/utils/TimeUtils.t.sol";
 
-contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
+contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermissionPt2 {
     using HopperEnv for *;
     using Env for *;
     using Encode for *;
@@ -45,8 +46,13 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         // reset hasPranked so we can use it again
         _unsafeResetHasPranked();
 
-        // 3. Set Rewards Permission
-        SetRewardsPermission._runAsMultisig();
+        // 3. Set Rewards PermissionPt1
+        SetRewardsPermissionPt1._runAsMultisig();
+        // reset hasPranked so we can use it again
+        _unsafeResetHasPranked();
+
+        // 4. Set Rewards PermissionPt2
+        SetRewardsPermissionPt2._runAsMultisig();
         // reset hasPranked so we can use it again
         _unsafeResetHasPranked();
 
@@ -102,6 +108,9 @@ contract ExecuteUpgradeAndSetTimestampSubmitter is SetRewardsPermission {
         // Verify timestamps using TimeUtils
         TimeUtils.assertEq(oct9th2025, "Thu Oct 09 2025 00:00:00 GMT+0000");
         TimeUtils.assertEq(oct16th2025, "Thu Oct 16 2025 00:00:00 GMT+0000");
+
+        // Because the earlier tests may warp past the `FIRST_SUBMISSION_START_TIMESTAMP`, we need to warp back to it.
+        vm.warp(FIRST_SUBMISSION_START_TIMESTAMP - 1);
 
         // 0. Validate that we cannot press the button before the first submission start timestamp.
         vm.expectRevert("TokenHopper._canPress: block.timestamp < startTime");
