@@ -13,11 +13,15 @@
         },
         {
             "type": "multisig",
-            "filename": "3-setRewardsPermission.s.sol"
+            "filename": "3-setRewardsPermissionPt1.s.sol"
         },
         {
             "type": "multisig",
-            "filename": "4-executeGrantMintingRights.s.sol"
+            "filename": "4-setRewardsPermissionPt2.s.sol"
+        },
+        {
+            "type": "multisig",
+            "filename": "5-executeGrantMintingRights.s.sol"
         }
     ]
 }
